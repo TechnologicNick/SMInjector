@@ -26,6 +26,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SMLuaReaderPlugin", "..\Plu
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SMLuaHook", "..\PluginDevFolder\SMLuaHook\SMLuaHook.vcxproj", "{93661F1D-21DC-4B5B-88EC-6BEA337DF56B}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CustomGarments", "..\PluginDevFolder\CustomGarments\CustomGarments.vcxproj", "{38DC34FA-3023-4313-AA91-13AFB0E3DD9D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -51,6 +53,10 @@ Global
 		{93661F1D-21DC-4B5B-88EC-6BEA337DF56B}.Debug|x64.Build.0 = Debug|x64
 		{93661F1D-21DC-4B5B-88EC-6BEA337DF56B}.Release|x64.ActiveCfg = Release|x64
 		{93661F1D-21DC-4B5B-88EC-6BEA337DF56B}.Release|x64.Build.0 = Release|x64
+		{38DC34FA-3023-4313-AA91-13AFB0E3DD9D}.Debug|x64.ActiveCfg = Debug|x64
+		{38DC34FA-3023-4313-AA91-13AFB0E3DD9D}.Debug|x64.Build.0 = Debug|x64
+		{38DC34FA-3023-4313-AA91-13AFB0E3DD9D}.Release|x64.ActiveCfg = Release|x64
+		{38DC34FA-3023-4313-AA91-13AFB0E3DD9D}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -60,6 +66,7 @@ Global
 		{16BDCA26-D20C-4AC4-8DB3-9C108719B752} = {4EC6A5BC-FCE4-4FFE-AC55-7D83B6B7C8D7}
 		{13E88C11-DEB6-47D5-9382-4E5D484A58C2} = {4EC6A5BC-FCE4-4FFE-AC55-7D83B6B7C8D7}
 		{93661F1D-21DC-4B5B-88EC-6BEA337DF56B} = {4EC6A5BC-FCE4-4FFE-AC55-7D83B6B7C8D7}
+		{38DC34FA-3023-4313-AA91-13AFB0E3DD9D} = {4EC6A5BC-FCE4-4FFE-AC55-7D83B6B7C8D7}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {D7E2F6B1-96AC-4FB5-B8AA-FDB43C7F169E}
