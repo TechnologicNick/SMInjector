@@ -13,6 +13,8 @@
 #include <sstream>
 #include <string>
 
+#include "config.h"
+
 namespace fs = std::filesystem;
 
 using json = nlohmann::json;
@@ -301,7 +303,7 @@ namespace LuaHook {
 			for (selector& selector : hookItem.selector) {
 				selected &= (*selector.func)(fields, hookItem, selector);
 
-				Console::log(selected ? Color::LightPurple : Color::Purple, selected ? "selected" : "not selected");
+				DEBUG_LOG(selected ? Color::LightPurple : Color::Purple, selected ? "selected" : "not selected");
 
 				if (!selected) {
 					break;

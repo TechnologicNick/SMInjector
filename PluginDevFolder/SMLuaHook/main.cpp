@@ -8,12 +8,15 @@
 
 using Console::Color;
 
+#include "config.h"
 #include "hooks.h"
 #include "lua_hook_config.h"
 bool InjectLua();
 
 LIB_RESULT PluginLoad() {
 	Console::log(Color::Aqua, "Starting plugin ...");
+
+	LuaHook::Config::load();
 
 	if (!InjectLua()) {
 		Console::log(Color::Red, "Failed to inject lua functions");

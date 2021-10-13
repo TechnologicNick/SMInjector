@@ -14,6 +14,7 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="config.h" />
     <ClInclude Include="hooks.h" />
     <ClInclude Include="lua_hook_config.h" />
   </ItemGroup>
