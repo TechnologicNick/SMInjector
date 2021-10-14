@@ -21,6 +21,22 @@ LIB_RESULT PluginLoad() {
 
 		Console::log(Color::Aqua, "Found garment code comparison at %p", garmentCode);
 
+
+		// Replace instructions after the jump with NOP
+
+		LPVOID dst = (LPVOID)(garmentCode + 2);
+		size_t len = 30;
+		DWORD oldProtection;
+		DWORD temp;
+
+		// Allow modifications of the target function
+		VirtualProtect(dst, len, PAGE_EXECUTE_READWRITE, &oldProtection);
+
+		// Fill with NOP
+		memset(dst, 0x90, len);
+
+		// Restore protection
+		VirtualProtect(dst, len, oldProtection, &temp);
 	}
 
 	return PLUGIN_SUCCESSFULL;
