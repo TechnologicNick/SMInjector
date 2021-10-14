@@ -7,6 +7,13 @@
 using Console::Color;
 
 
+
+void garmentCodeHook(UINT32 expected, UINT32 got) {
+
+	Console::log(Color::LightPurple, "Incorrect garment code detected! (expected %u, got %u)", expected, got);
+
+}
+
 LIB_RESULT PluginLoad() {
 	Console::log(Color::Aqua, "Scanning for signature");
 
@@ -20,6 +27,7 @@ LIB_RESULT PluginLoad() {
 		}
 
 		Console::log(Color::Aqua, "Found garment code comparison at %p", garmentCode);
+		Console::log(Color::Aqua, "Installing hook to %p", &garmentCodeHook);
 
 
 		// Replace instructions after the jump with NOP
@@ -35,8 +43,21 @@ LIB_RESULT PluginLoad() {
 		// Fill with NOP
 		memset(dst, 0x90, len);
 
+		byte instructions[] = {
+			0x8B, 0xD0, // mov	edi, eax	param1: got
+			0x8B, 0xCE, // mov	exc, esi	param0: expected
+
+			0xFF, 0x15, 0x02, 0x00, 0x00, 0x00, 0xEB, 0x08 // absolute call
+		};
+
+		memcpy(dst, instructions, sizeof(instructions));
+
+		*(long long *)((long long)dst + sizeof(instructions)) = (long long)&garmentCodeHook;
+
 		// Restore protection
 		VirtualProtect(dst, len, oldProtection, &temp);
+
+		Console::log(Color::Aqua, "Hook installed", &garmentCodeHook);
 	}
 
 	return PLUGIN_SUCCESSFULL;
