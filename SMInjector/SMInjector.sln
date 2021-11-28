@@ -28,6 +28,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SMLuaHook", "..\PluginDevFo
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CustomGarments", "..\PluginDevFolder\CustomGarments\CustomGarments.vcxproj", "{38DC34FA-3023-4313-AA91-13AFB0E3DD9D}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ChallengeModeWorkshopMods", "..\PluginDevFolder\ChallengeModeWorkshopMods\ChallengeModeWorkshopMods.vcxproj", "{65C1F328-2CBB-4720-B1A4-4C3A910B7179}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -57,6 +59,10 @@ Global
 		{38DC34FA-3023-4313-AA91-13AFB0E3DD9D}.Debug|x64.Build.0 = Debug|x64
 		{38DC34FA-3023-4313-AA91-13AFB0E3DD9D}.Release|x64.ActiveCfg = Release|x64
 		{38DC34FA-3023-4313-AA91-13AFB0E3DD9D}.Release|x64.Build.0 = Release|x64
+		{65C1F328-2CBB-4720-B1A4-4C3A910B7179}.Debug|x64.ActiveCfg = Debug|x64
+		{65C1F328-2CBB-4720-B1A4-4C3A910B7179}.Debug|x64.Build.0 = Debug|x64
+		{65C1F328-2CBB-4720-B1A4-4C3A910B7179}.Release|x64.ActiveCfg = Release|x64
+		{65C1F328-2CBB-4720-B1A4-4C3A910B7179}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -67,6 +73,7 @@ Global
 		{13E88C11-DEB6-47D5-9382-4E5D484A58C2} = {4EC6A5BC-FCE4-4FFE-AC55-7D83B6B7C8D7}
 		{93661F1D-21DC-4B5B-88EC-6BEA337DF56B} = {4EC6A5BC-FCE4-4FFE-AC55-7D83B6B7C8D7}
 		{38DC34FA-3023-4313-AA91-13AFB0E3DD9D} = {4EC6A5BC-FCE4-4FFE-AC55-7D83B6B7C8D7}
+		{65C1F328-2CBB-4720-B1A4-4C3A910B7179} = {4EC6A5BC-FCE4-4FFE-AC55-7D83B6B7C8D7}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {D7E2F6B1-96AC-4FB5-B8AA-FDB43C7F169E}
