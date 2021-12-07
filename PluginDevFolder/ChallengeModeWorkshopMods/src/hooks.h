@@ -1,10 +1,16 @@
 #pragma once
 #include <gamehook.h>
 #include <sigscan.h>
+#include <sm_globals.h>
+#include <vector>
 //#include <rpcdce.h> // adds UUID/GUID
 
 #include <console.h>
 using Console::Color;
+
+namespace ChallengeModeWorkshopMods::Globals {
+	void* g_contraptionUserGeneratedContentManager = nullptr;
+}
 
 namespace ChallengeModeWorkshopMods::Hooks {
 
@@ -26,7 +32,7 @@ namespace ChallengeModeWorkshopMods::Hooks {
 	typedef void (*pparse_shapesets_json)(void*, const char**);
 	GameHook* hck_parse_shapesets_json;
 
-	typedef int (*pload_workshop_mods)(void*, void*, void*);
+	typedef int (*pload_workshop_mods)(void*, void*, long long);
 	GameHook* hck_load_workshop_mods;
 
 	DWORD64 pGameInstance;
@@ -58,24 +64,42 @@ namespace ChallengeModeWorkshopMods::Hooks {
 		((pload_game_loop)*hck_load_game_loop)(gameInstance, result);
 	}
 
+	int hook_load_workshop_mods(void* ugcManager, UGCIdVector* mods, long long type) {
+		Console::log(Color::Aqua, "load_workshop_mods: ugcManager=[%p] mods=[%p] something_else[%lld]", ugcManager, mods, type);
+
+		log_ugc_items(mods);
+
+		return ((pload_workshop_mods)*hck_load_workshop_mods)(ugcManager, mods, type);
+	}
+
 	void hook_parse_shapesets_json(void* something, const char** shapesetsJson) {
 		Console::log(Color::Aqua, "parse_shapesets_json: something=[%p] shapesetsJson=[%s]", something, *shapesetsJson);
 
 		if (strcmp(*shapesetsJson, "$CHALLENGE_DATA/Objects/Database/shapesets.json") == 0) {
 			Console::log(Color::LightPurple, "Challenge mode detected!");
+			
+			// never gets deleted, but that's fine for now
+			std::vector<UGCId>* items = new std::vector<UGCId>();
 
-			// TODO: Load UGC items
+			UGCId testUGC = { 0, {0xf6, 0x35, 0x43, 0xd9, 0xd2, 0x68, 0x40, 0x52, 0xad, 0x87, 0xde, 0x4c, 0x9d, 0xfe, 0xf6, 0x7a} };
+
+			items->push_back(testUGC);
+
+			items->shrink_to_fit();
+
+			UGCIdVector itemsVec = {
+				&items->front(),
+				(UGCId*)(((DWORD64)&items->front()) + items->size() * sizeof(UGCId)),
+				(UGCId*)(((DWORD64)&items->front()) + items->max_size() * sizeof(UGCId))
+			};
+
+			Console::log(Color::LightPurple, "g_contraptionUserGeneratedContentManager = %p", g_contraptionUserGeneratedContentManager);
+
+			hook_load_workshop_mods(g_contraptionUserGeneratedContentManager, &itemsVec, 4);
+			
 		}
 
 		((pparse_shapesets_json)*hck_parse_shapesets_json)(something, shapesetsJson);
-	}
-
-	int hook_load_workshop_mods(void* something, UGCIdVector* mods, void* something_else) {
-		Console::log(Color::Aqua, "load_workshop_mods: something=[%p] mods=[%p] something_else[%p]", something, mods, something_else);
-
-		log_ugc_items(mods);
-
-		return ((pload_workshop_mods)*hck_load_workshop_mods)(something, mods, something_else);
 	}
 
 
