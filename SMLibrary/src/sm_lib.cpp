@@ -20,6 +20,8 @@ using Console::Color;
 constexpr longlong offset_InitConsole = 0x1b5410;
 //0x1b5090;
 
+#include "../include/sm_globals.h"
+
 struct LIB_PLUGIN {
 	const char *plugin_name = NULL;
 	HMODULE hModule = NULL;
@@ -50,6 +52,8 @@ BOOL Startup() {
 	if(!sm_handle) return false;
 
 	hck_init_console = GameHooks::Inject((void*)((longlong)sm_handle + offset_InitConsole), &Hooks::hook_init_console, 5);
+
+	Globals::Inject();
 
 	return true;
 }

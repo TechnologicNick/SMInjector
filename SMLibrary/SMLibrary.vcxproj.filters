@@ -50,6 +50,9 @@
     <ClInclude Include="include\path_helper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\sm_globals.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

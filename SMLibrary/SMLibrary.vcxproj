@@ -95,6 +95,7 @@
     <ClInclude Include="include\path_helper.h" />
     <ClInclude Include="include\plugin_config.h" />
     <ClInclude Include="include\sigscan.h" />
+    <ClInclude Include="include\sm_globals.h" />
     <ClInclude Include="include\sm_lib.h" />
     <ClInclude Include="include\stdafx.h" />
     <ClInclude Include="src\hooks.h" />
