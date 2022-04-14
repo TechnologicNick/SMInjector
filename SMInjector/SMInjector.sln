@@ -30,6 +30,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CustomGarments", "..\Plugin
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NetworkingHook", "..\PluginDevFolder\NetworkingHook\NetworkingHook.vcxproj", "{8D0D1451-61D6-422C-8785-B5E00A9FFB09}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AllowDevModeMismatch", "..\PluginDevFolder\AllowDevModeMismatch\AllowDevModeMismatch.vcxproj", "{13A9BE96-3A7B-44C4-ADCD-C2615BBCFDB4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -63,6 +65,10 @@ Global
 		{8D0D1451-61D6-422C-8785-B5E00A9FFB09}.Debug|x64.Build.0 = Debug|x64
 		{8D0D1451-61D6-422C-8785-B5E00A9FFB09}.Release|x64.ActiveCfg = Release|x64
 		{8D0D1451-61D6-422C-8785-B5E00A9FFB09}.Release|x64.Build.0 = Release|x64
+		{13A9BE96-3A7B-44C4-ADCD-C2615BBCFDB4}.Debug|x64.ActiveCfg = Debug|x64
+		{13A9BE96-3A7B-44C4-ADCD-C2615BBCFDB4}.Debug|x64.Build.0 = Debug|x64
+		{13A9BE96-3A7B-44C4-ADCD-C2615BBCFDB4}.Release|x64.ActiveCfg = Release|x64
+		{13A9BE96-3A7B-44C4-ADCD-C2615BBCFDB4}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -74,6 +80,7 @@ Global
 		{93661F1D-21DC-4B5B-88EC-6BEA337DF56B} = {4EC6A5BC-FCE4-4FFE-AC55-7D83B6B7C8D7}
 		{38DC34FA-3023-4313-AA91-13AFB0E3DD9D} = {4EC6A5BC-FCE4-4FFE-AC55-7D83B6B7C8D7}
 		{8D0D1451-61D6-422C-8785-B5E00A9FFB09} = {4EC6A5BC-FCE4-4FFE-AC55-7D83B6B7C8D7}
+		{13A9BE96-3A7B-44C4-ADCD-C2615BBCFDB4} = {4EC6A5BC-FCE4-4FFE-AC55-7D83B6B7C8D7}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {D7E2F6B1-96AC-4FB5-B8AA-FDB43C7F169E}
