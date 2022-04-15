@@ -3,6 +3,7 @@
 
 #include <sm_lib.h>
 #include <console.h>
+#include <sigscan.h>
 #include <Windows.h>
 
 #include "hooks.h"
@@ -17,6 +18,12 @@ LIB_RESULT PluginLoad() {
 
 	HMODULE hModule = GetModuleHandleA("steam_api64.dll");
 	if (!hModule) {
+		return PLUGIN_ERROR;
+	}
+
+	SignatureScanner sigScanner(L"ScrapMechanic.exe");
+	if (!sigScanner.readMemory()) {
+		Console::log(Color::LightRed, "Failed to read the memory of ScrapMechanic.exe");
 		return PLUGIN_ERROR;
 	}
 
@@ -39,6 +46,13 @@ LIB_RESULT PluginLoad() {
 	if (!hck_SteamAPI_RegisterCallback) {
 		Console::log(Color::Red, "Failed to inject 'SteamAPI_RegisterCallback'");
 		return false;
+	}
+
+	{
+		void* socketsInterface = SteamInternal_FindOrCreateUserInterface(SteamAPI_GetHSteamUser(), "SteamNetworkingSockets009");
+		Console::log(Color::LightPurple, "SteamAPI_SteamGameServerNetworkingSockets_v009 interface = %p", socketsInterface);
+		
+		Console::log(Color::LightPurple, "ReceiveMessagesOnPollGroup = %p", **(char***)socketsInterface + 0x70);
 	}
 
 	return PLUGIN_SUCCESSFULL;
