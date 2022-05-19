@@ -73,7 +73,7 @@ const char* defaultConfig = R"(// Configuration file for hooking the Lua C API
 					{
 				    	"field": "name",
 				    	"operator": "EQUALS",
-				    	"value": "Survival/Scripts/game/SurvivalGame.lua"
+				    	"value": "$SURVIVAL_DATA/Scripts/game/SurvivalGame.lua"
 					}
 				],
 				"execute": [
