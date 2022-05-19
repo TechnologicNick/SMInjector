@@ -71,9 +71,12 @@ const char* defaultConfig = R"(// Configuration file for hooking the Lua C API
 				"priority": 1,
 				"selector": [
 					{
-				    	"field": "name",
-				    	"operator": "EQUALS",
-				    	"value": "$SURVIVAL_DATA/Scripts/game/SurvivalGame.lua"
+						// The "value" field is most often not the full path. Enable
+						// debug mode in config.json to log all files that are loaded.
+
+						"field": "name",
+						"operator": "EQUALS",
+						"value": "$SURVIVAL_DATA/Scripts/game/SurvivalGame.lua"
 					}
 				],
 				"execute": [
