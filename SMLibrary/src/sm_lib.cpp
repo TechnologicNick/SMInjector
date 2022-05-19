@@ -17,8 +17,7 @@ namespace fs = std::filesystem;
 using Console::Color;
 
 #include "../include/gamehook.h"
-constexpr longlong offset_InitConsole = 0x1b5410;
-//0x1b5090;
+#include "../include/sigscan.h"
 
 struct LIB_PLUGIN {
 	const char *plugin_name = NULL;
@@ -46,10 +45,17 @@ fs::path GetDllPath(HMODULE hModule) {
 }
 
 BOOL Startup() {
-	HMODULE sm_handle = GetModuleHandleA("ScrapMechanic.exe");
-	if(!sm_handle) return false;
+	SignatureScanner sigScanner(L"ScrapMechanic.exe");
+	if (!sigScanner.readMemory()) {
+		return false;
+	}
 
-	hck_init_console = GameHooks::Inject((void*)((longlong)sm_handle + offset_InitConsole), &Hooks::hook_init_console, 5);
+	DWORD64 initConsole = sigScanner.scan("\xC7\x45\x00\x00\x00\x00\x00\xC7\x45\x00\x00\x00\x00\x00\x48\x8D\x45\xE7", "xx?????xx?????xxxx", -52);
+	if (!initConsole) {
+		return false;
+	}
+
+	hck_init_console = GameHooks::Inject((void*)initConsole, &Hooks::hook_init_console, 5);
 
 	return true;
 }
