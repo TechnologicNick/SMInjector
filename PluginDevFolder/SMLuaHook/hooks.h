@@ -51,6 +51,7 @@ namespace LuaHook::Hooks {
 
 	int hook_luaL_loadstring(lua_State* L, const char* s) {
 		DEBUG_LOG(Color::Aqua, "hook_luaL_loadstring: s=[ ... ]");
+		DEBUG_LOG(Color::Gray, "hook_luaL_loadstring: content:\n%s", s);
 
 		std::map<std::string, std::any> fields = {
 			{"s", &s}
