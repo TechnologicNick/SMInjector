@@ -17,23 +17,30 @@ struct VolvoStructure
 };
 
 using fGetNetworkingSocketInterface = std::add_pointer< uint64_t(VolvoStructure***) >::type;
-using fReceiveMessagesOnPollGroup = std::add_pointer< int(void*, void*, SteamNetworkingMessage_t**, int) >::type;
+using fReceiveMessagesOnPollGroup = std::add_pointer< int(void*, HSteamNetPollGroup, SteamNetworkingMessage_t**, int) >::type;
+using fSendMessageToConnection = std::add_pointer< EResult(void*, HSteamNetConnection, const void*, uint32, int, int64*) >::type;
 
 fReceiveMessagesOnPollGroup o_Steam_ReceiveMessagesOnPollGroup = nullptr;
+fSendMessageToConnection o_Steam_SendMessageToConnection = nullptr;
 
 namespace PacketLogger::Hooks {
 
-    int hook_Steam_ReceiveMessagesOnPollGroup(void* self, void* poll_group, SteamNetworkingMessage_t** out_msg, int msg_max) {
-        int numMessages = o_Steam_ReceiveMessagesOnPollGroup(self, poll_group, out_msg, msg_max);
-        SteamNetworkingMessage_t* outMsg = *out_msg;
+    int hook_Steam_ReceiveMessagesOnPollGroup(void* self, HSteamNetPollGroup hPollGroup, SteamNetworkingMessage_t** ppOutMessages, int nMaxMessages) {
+        int numMessages = o_Steam_ReceiveMessagesOnPollGroup(self, hPollGroup, ppOutMessages, nMaxMessages);
+        SteamNetworkingMessage_t* outMsg = *ppOutMessages;
         for (int i = 0; i < numMessages; i++) {
-            PacketLogger::Logger::LogPacket(outMsg[i]);
+            PacketLogger::Logger::LogInboundPacket(outMsg[i]);
         }
 
         return numMessages;
     }
 
-    fReceiveMessagesOnPollGroup* GetReceiveMessagesOnPollGroupPtr() {
+    int hook_Steam_SendMessageToConnection(void* self, HSteamNetConnection hConn, const void* pData, uint32 cbData, int nSendFlags, int64* pOutMessageNumber) {
+		PacketLogger::Logger::LogOutboundPacket(hConn, pData, cbData, nSendFlags, pOutMessageNumber);
+        return o_Steam_SendMessageToConnection(self, hConn, pData, cbData, nSendFlags, pOutMessageNumber);
+    }
+
+    VolvoStructure** GetVolvoStructure() {
         const PBYTE pBaseAddress = PBYTE(GetModuleHandle(NULL));
         const fGetNetworkingSocketInterface pfnGetNetworkingSocketInterface = fGetNetworkingSocketInterface(pBaseAddress + offset_HandleNetworkMessages);
 
@@ -42,31 +49,38 @@ namespace PacketLogger::Hooks {
 
         pfnGetNetworkingSocketInterface(&ptr);
 
-        return (fReceiveMessagesOnPollGroup*)&(*ptr)->m_functions[14];
+        return ptr;
     }
 
     bool InstallHooks() {
         Console::log(Color::Aqua, "Installing hooks...");
 
-        fReceiveMessagesOnPollGroup* funcPtr = GetReceiveMessagesOnPollGroupPtr();
-        o_Steam_ReceiveMessagesOnPollGroup = *funcPtr;
+        VolvoStructure** ptr = GetVolvoStructure();
+        o_Steam_ReceiveMessagesOnPollGroup = (fReceiveMessagesOnPollGroup)(*ptr)->m_functions[14];
+		o_Steam_SendMessageToConnection = (fSendMessageToConnection)(*ptr)->m_functions[11];
 
+		LPVOID pAddress = (LPVOID)&(*ptr)->m_functions[0];
+        SIZE_T dwSize = sizeof(pAddress) * 14;
         DWORD oldProtect = 0;
-        VirtualProtect(funcPtr, 8, PAGE_READWRITE, &oldProtect);
-        *funcPtr = &hook_Steam_ReceiveMessagesOnPollGroup;
-        VirtualProtect(funcPtr, 8, oldProtect, NULL);
+        VirtualProtect(pAddress, dwSize, PAGE_READWRITE, &oldProtect);
+        (*ptr)->m_functions[14] = &hook_Steam_ReceiveMessagesOnPollGroup;
+		(*ptr)->m_functions[11] = &hook_Steam_SendMessageToConnection;
+        VirtualProtect(pAddress, dwSize, oldProtect, NULL);
 
         Console::log(Color::Aqua, "Hooks installed!");
         return true;
     }
 
     bool UninstallHooks() {
-        fReceiveMessagesOnPollGroup* funcPtr = GetReceiveMessagesOnPollGroupPtr();
+        VolvoStructure** ptr = GetVolvoStructure();
 
+        LPVOID pAddress = (LPVOID) & (*ptr)->m_functions[0];
+        SIZE_T dwSize = sizeof(pAddress) * 14;
         DWORD oldProtect = 0;
-        VirtualProtect(funcPtr, 8, PAGE_READWRITE, &oldProtect);
-        *funcPtr = o_Steam_ReceiveMessagesOnPollGroup;
-        VirtualProtect(funcPtr, 8, oldProtect, NULL);
+        VirtualProtect(pAddress, dwSize, PAGE_READWRITE, &oldProtect);
+        (*ptr)->m_functions[14] = &o_Steam_ReceiveMessagesOnPollGroup;
+		(*ptr)->m_functions[11] = &o_Steam_SendMessageToConnection;
+        VirtualProtect(pAddress, dwSize, oldProtect, NULL);
 
         Console::log(Color::Aqua, "Hooks uninstalled!");
         return true;
