@@ -27,9 +27,11 @@ namespace PacketLogger::Hooks {
 
     int hook_Steam_ReceiveMessagesOnPollGroup(void* self, HSteamNetPollGroup hPollGroup, SteamNetworkingMessage_t** ppOutMessages, int nMaxMessages) {
         int numMessages = o_Steam_ReceiveMessagesOnPollGroup(self, hPollGroup, ppOutMessages, nMaxMessages);
-        SteamNetworkingMessage_t* outMsg = *ppOutMessages;
+		
+        SteamNetworkingMessage_t** outMsg = ppOutMessages;
         for (int i = 0; i < numMessages; i++) {
-            PacketLogger::Logger::LogInboundPacket(outMsg[i]);
+            SteamNetworkingMessage_t* message = outMsg[i];
+            PacketLogger::Logger::LogInboundPacket(message);
         }
 
         return numMessages;

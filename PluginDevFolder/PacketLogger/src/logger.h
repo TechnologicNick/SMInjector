@@ -34,16 +34,14 @@ namespace PacketLogger::Logger {
         return true;
 	}
 
-	void LogInboundPacket(SteamNetworkingMessage_t& message) {
-        unsigned int size = message.GetSize();
-
-		if (size > 0 && message.GetData() != nullptr) {
-			uint32_t bufferSize = 1 + message.GetSize();
+	void LogInboundPacket(SteamNetworkingMessage_t* message) {
+		if (message->m_cbSize > 0 && message->m_pData != nullptr) {
+			int bufferSize = 1 + message->m_cbSize;
 			char* buffer = new char[bufferSize];
 			buffer[0] = Direction::Inbound;
-			memcpy(buffer + 1, message.GetData(), message.GetSize());
+			memcpy(buffer + 1, message->m_pData, message->m_cbSize);
 
-		    DWORD dwWritten;
+  		    DWORD dwWritten = 0;
 		    if (!WriteFile(hPipe, buffer, bufferSize, &dwWritten, NULL)) {
                 DWORD error = GetLastError();
 				if (error != ERROR_PIPE_LISTENING) {
@@ -81,4 +79,8 @@ namespace PacketLogger::Logger {
 			delete[] buffer;
 		}
     }
+
+	void Breakpoint() {
+
+	}
 }
