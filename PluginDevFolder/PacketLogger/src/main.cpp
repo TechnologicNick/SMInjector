@@ -9,6 +9,11 @@ using Console::Color;
 
 LIB_RESULT PluginLoad() {
 	Console::log(Color::Aqua, "Loading...");
+
+	if (!PacketLogger::Logger::InitPipe()) {
+		Console::log(Color::Red, "Failed to initialize named pipe!");
+		return PLUGIN_ERROR;
+	}
 	
 	if (!PacketLogger::Hooks::InstallHooks()) {
 		Console::log(Color::Red, "Failed to install hooks");
