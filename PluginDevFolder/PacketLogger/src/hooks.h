@@ -3,11 +3,8 @@
 #include <Windows.h>
 #include <type_traits>
 
-#pragma warning(push)
-#pragma warning(disable : 4996)
-#include <sdk/steam/steam_api.h>
-#include <sdk/steam/steam_gameserver.h>
-#pragma warning(pop)
+#include "steam.h"
+#include "logger.h"
 
 #include <console.h>
 using Console::Color;
@@ -30,14 +27,7 @@ namespace PacketLogger::Hooks {
         int numMessages = o_Steam_ReceiveMessagesOnPollGroup(self, poll_group, out_msg, msg_max);
         SteamNetworkingMessage_t* outMsg = *out_msg;
         for (int i = 0; i < numMessages; i++) {
-            SteamNetworkingMessage_t* message = &outMsg[i];
-            unsigned int size = message->GetSize();
-
-            Console::log(Color::LightPurple, "------------");
-            Console::log(Color::LightPurple, " Size: %u", size);
-            if (size > 0) {
-                Console::log(Color::LightPurple, " PacketID: %u", PBYTE(message->GetData())[0]);
-            }
+            PacketLogger::Logger::LogPacket(outMsg[i]);
         }
 
         return numMessages;

@@ -15,6 +15,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\hooks.h" />
+    <ClInclude Include="src\logger.h" />
+    <ClInclude Include="src\packets.h" />
+    <ClInclude Include="src\steam.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

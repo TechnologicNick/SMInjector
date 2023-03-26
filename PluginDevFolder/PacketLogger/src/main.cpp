@@ -5,8 +5,6 @@
 #include <console.h>
 using Console::Color;
 
-#pragma comment(lib, "sdk/steam_api64.lib")
-
 #include "hooks.h"
 
 LIB_RESULT PluginLoad() {
