@@ -1,13 +1,16 @@
 class Bitfield:
-    def __init__(self, bytes: bytes, byteorder = "big"):
-        self.bitfield = int.from_bytes(bytes, byteorder=byteorder)
-        self.len = len(bytes)
+    def __init__(self, input: bytes | int, byteorder = "big"):
+        if isinstance(input, int):
+            input = bytes([input])
+
+        self.bitfield = int.from_bytes(input, byteorder=byteorder)
+        self.len = len(input)
     
     def get_bit(self, bit: int):
         return (self.bitfield >> bit) & 1
     
     def get_all_bits(self):
-        return [self.get_bit(bit) for bit in range(self.len * 8)]
+        return [(bit, self.get_bit(bit)) for bit in range(self.len * 8 - 1, -1, -1)]
     
     def get_int_from_bits(self, bits: list):
         return sum([self.get_bit(bits[i]) * 2 ** i for i in range(len(bits))])
