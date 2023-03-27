@@ -13,7 +13,8 @@ class Bitfield:
         return [(bit, self.get_bit(bit)) for bit in range(self.len * 8 - 1, -1, -1)]
     
     def get_int_from_bits(self, bits: list):
-        return sum([self.get_bit(bits[i]) * 2 ** i for i in range(len(bits))])
+        """Returns an integer from a list of bit indices, where the first bit is the most significant bit"""
+        return sum([self.get_bit(bits[i]) << (len(bits) - i - 1) for i in range(len(bits))])
     
     def __str__(self):
         return bin(self.bitfield)[2:].zfill(16)
