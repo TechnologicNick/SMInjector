@@ -2,7 +2,7 @@ from packets.packet import Packet
 from packets.bitfield import Bitfield
 
 class Packet_0x1E(Packet):
-    def __init__(self, id: int, data: bytes, hidden=False):
+    def __init__(self, id: int, data: bytes, hidden=True):
         super().__init__(id, data, hidden)
 
     def parse_packet(self):

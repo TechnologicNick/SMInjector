@@ -33,8 +33,8 @@ def pipe_client():
                 direction = Direction(data[0]).name
                 packet = registry.get_packet(data[1], data[2:])
                 if not packet.hidden:
-                    hexdump = " ".join(hex(letter)[2:].zfill(2) for letter in data[2:])
-                    print(f"{direction.ljust(8)}\t packet {hex(data[1]).zfill(2)}: ({hexdump}) {packet.parse_packet()}")
+                    # hexdump = " ".join(hex(letter)[2:].zfill(2) for letter in data[2:])
+                    print(f"{direction.ljust(8)}\t packet {hex(data[1]).zfill(2)} ({data[1]}): (size={len(data)-2}) {packet.parse_packet()}")
 
         except pywintypes.error as e:
             if e.args[0] == 2:
