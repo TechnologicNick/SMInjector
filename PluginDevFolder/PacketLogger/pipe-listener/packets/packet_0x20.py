@@ -23,10 +23,16 @@ class ItemStack:
 class Action(IntEnum):
     SET_ITEM = 0
     SWAP = 1
-    COLLECT_TO_SLOT = 5
-    MOVE_INVALID = 6
-    MOVE_DRAG = 7
-    MOVE_SHIFT_CLICK = 8
+    COLLECT = 2
+    SPEND = 3 # Never seen this one
+    COLLECT_TO_SLOT = 4 # Never seen this one
+    COLLECT_TO_SLOT_OR_COLLECT = 5
+    SPEND_FROM_SLOT = 6
+    MOVE = 7
+    MOVE_FROM_SLOT = 8
+    MOVE_ALL = 9
+
+    UNKNOWN = -1
     
     def parse_transaction(self, data: bytes):
         if self == Action.SET_ITEM:
@@ -38,39 +44,68 @@ class Action(IntEnum):
                 "from": ItemStack.parse(data[1:]),
                 "to": ItemStack.parse(data[1 + ItemStack.size():]),
             })
+        elif self == Action.COLLECT:
+            return (1 + 16 + 4 + 2 + 4 + 1, {
+                "uuid": UUID(data[1:17]),
+                "tool_instance_id": int.from_bytes(data[17:21], byteorder="big"),
+                "quantity": int.from_bytes(data[21:23], byteorder="big"),
+                "container_id": int.from_bytes(data[23:27], byteorder="big"),
+                "must_collect_all": data[27],
+            })
         elif self == Action.COLLECT_TO_SLOT:
             return (1 + ItemStack.size() + 1, {
-                "item": ItemStack.parse(data[1:]),
-                "unknown": data[1 + ItemStack.size()],
+                "to": ItemStack.parse(data[1:]),
+                "must_collect_all": data[1 + ItemStack.size()],
             })
-        elif self == Action.MOVE_INVALID:
+        elif self == Action.COLLECT_TO_SLOT_OR_COLLECT:
+            return (1 + ItemStack.size() + 1, {
+                "to": ItemStack.parse(data[1:]),
+                "must_collect_all": data[1 + ItemStack.size()],
+            })
+        elif self == Action.SPEND_FROM_SLOT:
             return (1 + ItemStack.size() + 1, {
                 "from": ItemStack.parse(data[1:]),
                 "unknown": data[1 + ItemStack.size()],
             })
-        elif self == Action.MOVE_DRAG:
+        elif self == Action.MOVE:
             return (1 + ItemStack.size() + ItemStack.size() + 1, {
                 "from": ItemStack.parse(data[1:]),
                 "to": ItemStack.parse(data[1 + ItemStack.size():]),
                 "unknown": data[1 + ItemStack.size() + ItemStack.size()],
             })
-        elif self == Action.MOVE_SHIFT_CLICK:
+        elif self == Action.MOVE_FROM_SLOT:
             return (1 + 2 + 4 + 4, {
                 "slot_from": int.from_bytes(data[1:3], byteorder="big"),
                 "container_from": int.from_bytes(data[3:7], byteorder="big"),
                 "container_to": int.from_bytes(data[7:11], byteorder="big"),
             })
+        elif self == Action.MOVE_ALL:
+            return (1 + 4 + 4, {
+                "container_from": int.from_bytes(data[1:5], byteorder="big"),
+                "container_to": int.from_bytes(data[5:9], byteorder="big"),
+            })
+        elif self == Action.UNKNOWN:
+            return (1, {
+                "action": data[0],
+                "data": hexdump(data[1:]),
+            })
+        else:
+            raise Exception(f"Unknown action: {self}")
+    
+    @classmethod
+    def _missing_(self, value):
+        return Action.UNKNOWN
 
 
 class Packet_0x20(Packet):
-    """Change Hotbar Item"""
+    """Container Transaction"""
 
     def __init__(self, id: int, data: bytes, hidden=False):
         super().__init__(id, data, hidden)
 
     def parse_packet(self):
         decompressed: bytes = decompress(self.data, uncompressed_size=100)
-        # print("Decompressed:", hexdump(decompressed))
+        print("Decompressed:", hexdump(decompressed))
 
         transaction_count = int.from_bytes(decompressed[0:1], byteorder="big")
         transactions = []
@@ -87,6 +122,10 @@ class Packet_0x20(Packet):
             })
 
             ptr += size
+
+            # TODO: Reverse engineer the second transaction
+            if i > 0:
+                break
             
 
         return {
