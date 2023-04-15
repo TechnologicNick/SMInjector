@@ -4,6 +4,7 @@
 #include "packets.h"
 #include "steam.h"
 #include <system_error>
+#include <vector>
 
 LPCTSTR pipeName = TEXT("\\\\.\\pipe\\scrapmechanic");
 
@@ -79,6 +80,25 @@ namespace PacketLogger::Logger {
 			delete[] buffer;
 		}
     }
+
+	std::vector<Packet> LogPacket(const Packet& packet) {
+		std::vector<Packet> packets;
+
+		DWORD dwWritten;
+		if (!WriteFile(hPipe, packet.buffer, packet.size, &dwWritten, NULL)) {
+			DWORD error = GetLastError();
+			if (error != ERROR_PIPE_LISTENING) {
+				Console::log(Color::LightRed, "Failed to write to pipe: %s (%d)", std::system_category().message(error).c_str(), error);
+			}
+			if (error == ERROR_NO_DATA) {
+				InitPipe();
+			}
+
+			return { packet };
+		}
+
+		return packets;
+	}
 
 	void Breakpoint() {
 

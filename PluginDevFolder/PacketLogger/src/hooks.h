@@ -3,6 +3,7 @@
 #include <Windows.h>
 #include <type_traits>
 #include <gamehook.h>
+#include <vector>
 
 #include "steam.h"
 #include "logger.h"
@@ -22,8 +23,8 @@ struct VolvoStructure
 using fGetNetworkingSocketInterface = std::add_pointer< uint64_t(VolvoStructure***) >::type;
 using fReceiveMessagesOnPollGroup = std::add_pointer< int(void*, HSteamNetPollGroup, SteamNetworkingMessage_t**, int) >::type;
 using fSendMessageToConnection = std::add_pointer< EResult(void*, HSteamNetConnection, const void*, uint32, int, int64*) >::type;
-using fSendReliablePacket = std::add_pointer< void(const void* self, const void* param_2, const void* data, uint32 size, const uint32 param_5, const uint8 param_6, int* pOutCompressedSize) >::type;
-using fSendUnreliablePacket = std::add_pointer< void(const void* self, const void* param_2, const void* data, uint32 size, const void* param_5, int* pOutCompressedSize) >::type;
+using fSendReliablePacket = std::add_pointer< void(const void* self, const void* param_2, const char* data, uint32 size, const uint32 param_5, const uint8 param_6, int* pOutCompressedSize) >::type;
+using fSendUnreliablePacket = std::add_pointer< void(const void* self, const void* param_2, const char* data, uint32 size, const void* param_5, int* pOutCompressedSize) >::type;
 
 fReceiveMessagesOnPollGroup o_Steam_ReceiveMessagesOnPollGroup = nullptr;
 fSendMessageToConnection o_Steam_SendMessageToConnection = nullptr;
@@ -62,14 +63,54 @@ namespace PacketLogger::Hooks {
         return ptr;
     }
 
-    void hook_SendReliablePacket(const void* self, const void* param_2, const void* data, uint32 size, const uint32 param_5, const uint8 param_6, int* pOutCompressedSize) {
-        Console::log(Color::Aqua, "SendReliablePacket called! packet id = %u, size = %u", ((uint8*)data)[0], size);
-        ((fSendReliablePacket)*hck_SendReliablePacket)(self, param_2, data, size, param_5, param_6, pOutCompressedSize);
+    void hook_SendReliablePacket(const void* self, const void* param_2, const char* data, uint32 size, const uint32 param_5, const uint8 param_6, int* pOutCompressedSize) {
+        // Console::log(Color::Aqua, "SendReliablePacket called! packet id = %u, size = %u", ((uint8*)data)[0], size);
+
+        PacketHeader header = {
+            .action = Action::SendReliablePacket,
+            .direction = Direction::Outbound,
+            .size = size
+        };
+
+        Packet originalPacket(header, data);
+
+        std::vector<Packet> packets = Logger::LogPacket(originalPacket);
+        for (const Packet& packet : packets) {
+            if (packet.GetHeader()->action != Action::SendReliablePacket) {
+                continue;
+            }
+
+			((fSendReliablePacket)*hck_SendReliablePacket)(self, param_2, packet.GetData(), packet.GetHeader()->size, param_5, param_6, pOutCompressedSize);
+            
+            Packet::DeletePacket(packet);
+		}
+
+        // ((fSendReliablePacket)*hck_SendReliablePacket)(self, param_2, data, size, param_5, param_6, pOutCompressedSize);
     }
 
-    void hook_SendUnreliablePacket(const void* self, const void* param_2, const void* data, uint32 size, const void* param_5, int* pOutCompressedSize) {
-        Console::log(Color::Aqua, "SendUnreliablePacket called! packet id = %u, size = %u", ((uint8*)data)[0], size);
-        ((fSendUnreliablePacket)*hck_SendUnreliablePacket)(self, param_2, data, size, param_5, pOutCompressedSize);
+    void hook_SendUnreliablePacket(const void* self, const void* param_2, const char* data, uint32 size, const void* param_5, int* pOutCompressedSize) {
+        // Console::log(Color::Aqua, "SendUnreliablePacket called! packet id = %u, size = %u", ((uint8*)data)[0], size);
+
+        PacketHeader header = {
+			.action = Action::SendUnreliablePacket,
+			.direction = Direction::Outbound,
+			.size = size
+		};
+
+        Packet originalPacket(header, data);
+
+        std::vector<Packet> packets = Logger::LogPacket(originalPacket);
+        for (const Packet& packet : packets) {
+            if (packet.GetHeader()->action != Action::SendUnreliablePacket) {
+                continue;
+            }
+
+            ((fSendUnreliablePacket)*hck_SendUnreliablePacket)(self, param_2, packet.GetData(), packet.GetHeader()->size, param_5, pOutCompressedSize);
+
+            Packet::DeletePacket(packet);
+        }
+
+        // ((fSendUnreliablePacket)*hck_SendUnreliablePacket)(self, param_2, data, size, param_5, pOutCompressedSize);
     }
 
     bool InstallHooks() {
