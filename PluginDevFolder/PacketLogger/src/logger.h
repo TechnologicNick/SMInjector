@@ -35,55 +35,7 @@ namespace PacketLogger::Logger {
         return true;
 	}
 
-	void LogInboundPacket(SteamNetworkingMessage_t* message) {
-		if (message->m_cbSize > 0 && message->m_pData != nullptr) {
-			int bufferSize = 1 + message->m_cbSize;
-			char* buffer = new char[bufferSize];
-			buffer[0] = Direction::Inbound;
-			memcpy(buffer + 1, message->m_pData, message->m_cbSize);
-
-  		    DWORD dwWritten = 0;
-		    if (!WriteFile(hPipe, buffer, bufferSize, &dwWritten, NULL)) {
-                DWORD error = GetLastError();
-				if (error != ERROR_PIPE_LISTENING) {
-		    		Console::log(Color::LightRed, "Failed to write to pipe: %s (%d)", std::system_category().message(error).c_str(), error);
-				}
-				
-				if (error == ERROR_NO_DATA) {
-					InitPipe();
-				}
-		    }
-
-			delete[] buffer;
-        }
-	}
-	
-    void LogOutboundPacket(HSteamNetConnection& hConn, const void*& pData, uint32& cbData, int& nSendFlags, int64*& pOutMessageNumber) {
-		if (cbData > 0 && pData != nullptr) {
-			uint32_t bufferSize = 1 + cbData;
-			char* buffer = new char[bufferSize];
-			buffer[0] = Direction::Outbound;
-			memcpy(buffer + 1, pData, cbData);
-
-			DWORD dwWritten;
-			if (!WriteFile(hPipe, buffer, bufferSize, &dwWritten, NULL)) {
-				DWORD error = GetLastError();
-				if (error != ERROR_PIPE_LISTENING) {
-					Console::log(Color::LightRed, "Failed to write to pipe: %s (%d)", std::system_category().message(error).c_str(), error);
-				}
-
-				if (error == ERROR_NO_DATA) {
-					InitPipe();
-				}
-			}
-
-			delete[] buffer;
-		}
-    }
-
-	std::vector<Packet> LogPacket(const Packet& packet) {
-		std::vector<Packet> packets;
-
+	bool SendPacket(const Packet& packet) {
 		DWORD dwWritten;
 		if (!WriteFile(hPipe, packet.buffer, packet.size, &dwWritten, NULL)) {
 			DWORD error = GetLastError();
@@ -93,8 +45,54 @@ namespace PacketLogger::Logger {
 			if (error == ERROR_NO_DATA) {
 				InitPipe();
 			}
+			return false;
+		}
 
-			return { packet };
+		return true;
+	}
+
+	void LogInboundPacket(SteamNetworkingMessage_t* message) {
+		if (message->m_cbSize <= 0 || message->m_pData == nullptr) {
+			return;
+		}
+
+		PacketHeader header = {
+			.action = Action::ReceiveMessagesOnPollGroup,
+			.direction = Direction::Inbound,
+			.size = uint32_t(message->m_cbSize)
+		};
+
+		Packet packet(header, (const char*)message->m_pData);
+
+		SendPacket(packet);
+
+		Packet::DeletePacket(packet);
+	}
+	
+    void LogOutboundPacket(HSteamNetConnection& hConn, const void*& pData, uint32& cbData, int& nSendFlags, int64*& pOutMessageNumber) {
+		if (cbData == 0 || pData == nullptr) {
+			return;
+		}
+
+		PacketHeader header = {
+			.action = Action::SendMessageToConnection,
+			.direction = Direction::Outbound,
+			.size = cbData
+		};
+
+		Packet packet(header, (const char*)pData);
+
+		SendPacket(packet);
+
+		Packet::DeletePacket(packet);
+    }
+
+	std::vector<Packet> LogPacket(const Packet& packet) {
+		std::vector<Packet> packets;
+
+		// If we failed to send the packet, don't modify it
+		if (!SendPacket(packet)) {
+			packets.push_back(packet);
 		}
 
 		return packets;
