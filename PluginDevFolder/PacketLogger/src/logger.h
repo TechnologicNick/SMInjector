@@ -51,6 +51,39 @@ namespace PacketLogger::Logger {
 		return true;
 	}
 
+	bool ReceivePacket(std::vector<Packet>& packets) {
+		constexpr DWORD nNumberOfBytesToRead = 1 + sizeof(PacketHeader) + 0x80000;
+		char buffer[nNumberOfBytesToRead];
+
+		DWORD dwRead;
+		if (!ReadFile(hPipe, buffer, nNumberOfBytesToRead, &dwRead, NULL)) {
+			DWORD error = GetLastError();
+			if (error != ERROR_PIPE_LISTENING) {
+				Console::log(Color::LightRed, "Failed to read from pipe: %s (%d)", std::system_category().message(error).c_str(), error);
+			}
+			if (error == ERROR_NO_DATA) {
+				InitPipe();
+			}
+			return false;
+		}
+
+		if (dwRead == 0) {
+			return false;
+		}
+
+		uint8_t packetCount = buffer[0];
+		char* ptr = buffer + 1;
+		for (uint8_t i = 0; i < packetCount; i++) {
+			PacketHeader* header = reinterpret_cast<PacketHeader*>(ptr);
+			char* data = new char[header->size];
+			memcpy(data, ptr + sizeof(PacketHeader), header->size);
+			packets.emplace_back(*header, data);
+			ptr += sizeof(PacketHeader) + header->size;
+		}
+
+		return true;
+	}
+
 	void LogInboundPacket(SteamNetworkingMessage_t* message) {
 		if (message->m_cbSize <= 0 || message->m_pData == nullptr) {
 			return;
@@ -87,13 +120,16 @@ namespace PacketLogger::Logger {
 		Packet::DeletePacket(packet);
     }
 
-	std::vector<Packet> LogPacket(const Packet& packet) {
+	std::vector<Packet> SendAndReceivePacket(const Packet& packet) {
 		std::vector<Packet> packets;
 
 		// If we failed to send the packet, don't modify it
 		if (!SendPacket(packet)) {
 			packets.push_back(packet);
+			return packets;
 		}
+
+		ReceivePacket(packets);
 
 		return packets;
 	}

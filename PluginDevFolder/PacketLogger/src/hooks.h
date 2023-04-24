@@ -74,7 +74,7 @@ namespace PacketLogger::Hooks {
 
         Packet originalPacket(header, data);
 
-        std::vector<Packet> packets = Logger::LogPacket(originalPacket);
+        std::vector<Packet> packets = Logger::SendAndReceivePacket(originalPacket);
         for (const Packet& packet : packets) {
             if (packet.GetHeader()->action != Action::SendReliablePacket) {
                 continue;
@@ -99,11 +99,13 @@ namespace PacketLogger::Hooks {
 
         Packet originalPacket(header, data);
 
-        std::vector<Packet> packets = Logger::LogPacket(originalPacket);
+        std::vector<Packet> packets = Logger::SendAndReceivePacket(originalPacket);
         for (const Packet& packet : packets) {
             if (packet.GetHeader()->action != Action::SendUnreliablePacket) {
                 continue;
             }
+
+            std::string packetData(packet.GetData(), packet.GetHeader()->size);
 
             ((fSendUnreliablePacket)*hck_SendUnreliablePacket)(self, param_2, packet.GetData(), packet.GetHeader()->size, param_5, pOutCompressedSize);
 
