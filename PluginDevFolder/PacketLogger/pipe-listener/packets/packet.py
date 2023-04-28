@@ -6,3 +6,9 @@ class Packet:
 
     def parse_packet(self):
         return self.data
+    
+    def modify_packet(self):
+        return
+    
+    def build_packet(self):
+        return self.data

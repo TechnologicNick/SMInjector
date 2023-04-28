@@ -44,18 +44,28 @@ def process_packet(handle: int, data: bytes):
     direction = Direction(data[1])
     size = int.from_bytes(data[2:6], byteorder="little")
 
-    print(f"{action.name} {direction.name} {size}: {data}")
+    # print(f"{action.name} {direction.name} {size}: {data}")
 
     response_packets = []
 
     if action == Action.SendReliablePacket or action == Action.SendUnreliablePacket:
-        response_packets.append(data)
-
-    if action == Action.SendMessageToConnection or action == Action.ReceiveMessagesOnPollGroup:
+        # response_packets.append(data)
         packet = registry.get_packet(data[6], data[7:])
         if not packet.hidden:
             # hexdump = " ".join(hex(letter)[2:].zfill(2) for letter in data[2:])
-            print(f"{direction.name.ljust(8)}\t packet {hex(data[1]).zfill(2)} ({data[1]}): (size={len(data)-2}) {packet.parse_packet()}")
+            print(f"{direction.name.ljust(8)}\t packet {hex(data[6]).zfill(2)} ({data[6]}): (size={len(data[7:])}) {packet.parse_packet()}")
+        packet.modify_packet()
+        payload = bytes([packet.id]) + packet.build_packet()
+        payload = bytes([action.value, direction.value]) + len(payload).to_bytes(4, byteorder="little") + payload
+        response_packets.append(payload)
+
+
+
+    # if action == Action.SendMessageToConnection or action == Action.ReceiveMessagesOnPollGroup:
+    #     packet = registry.get_packet(data[6], data[7:])
+    #     if not packet.hidden:
+    #         # hexdump = " ".join(hex(letter)[2:].zfill(2) for letter in data[2:])
+    #         print(f"{direction.name.ljust(8)}\t packet {hex(data[6]).zfill(2)} ({data[6]}): (size={len(data[7:])}) {packet.parse_packet()}")
 
     if action == Action.SendReliablePacket or action == Action.SendUnreliablePacket:
         send_response(handle, response_packets)
@@ -64,7 +74,7 @@ def send_response(handle: int, response_packets: list[bytes]):
     # Prepend the length of the array as one byte, then concatenate all the packets
     data = bytes([len(response_packets)]) + b"".join(response_packets)
 
-    print(f"Sending response: {data}")
+    # print(f"Sending response: {data}")
 
     (result, bytes_written) = win32file.WriteFile(handle, data)
     # (result, bytes_written) = win32file.WriteFile(handle, b"\x00")

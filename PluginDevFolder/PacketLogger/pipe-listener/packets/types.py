@@ -16,3 +16,27 @@ class UUID:
     
     def __repr__(self):
         return f"UUID('{self.__str__()}')"
+
+class Vec3i:
+    def __init__(self, bytes, byteorder: Literal["little", "big"] = "big", signed: bool = True):
+        self.byteorder = byteorder
+        self.bytes = byteorder == "big" and bytes or bytes[-1::-1]
+        self.signed = signed
+    
+    def __str__(self):
+        return f"({self.x}, {self.y}, {self.z})"
+    
+    def __repr__(self):
+        return f"Vec3i{self.__str__()}"
+    
+    @property
+    def z(self):
+        return int.from_bytes(self.bytes[0:4], byteorder=self.byteorder, signed=self.signed)
+    
+    @property
+    def y(self):
+        return int.from_bytes(self.bytes[4:8], byteorder=self.byteorder, signed=self.signed)
+    
+    @property
+    def x(self):
+        return int.from_bytes(self.bytes[8:12], byteorder=self.byteorder, signed=self.signed)

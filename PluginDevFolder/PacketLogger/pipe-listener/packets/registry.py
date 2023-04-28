@@ -4,6 +4,8 @@ from packets.packet_0x18 import Packet_0x18
 from packets.packet_0x1E import Packet_0x1E
 from packets.packet_0x1F import Packet_0x1F
 from packets.packet_0x20 import Packet_0x20
+from packets.packet_0x22 import Packet_0x22
+from packets.packet_0x38 import Packet_0x38
 from packets.packet_0xXX import Packet_0xXX
 
 class PacketRegistry:
@@ -15,6 +17,8 @@ class PacketRegistry:
             0x1E: Packet_0x1E,
             0x1F: Packet_0x1F,
             0x20: Packet_0x20,
+            0x22: Packet_0x22,
+            0x38: Packet_0x38,
         }
 
     def get_packet(self, id, data):

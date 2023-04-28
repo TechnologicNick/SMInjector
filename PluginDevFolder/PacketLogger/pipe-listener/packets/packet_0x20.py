@@ -104,14 +104,13 @@ class Packet_0x20(Packet):
         super().__init__(id, data, hidden)
 
     def parse_packet(self):
-        decompressed: bytes = decompress(self.data, uncompressed_size=100)
-        print("Decompressed:", hexdump(decompressed))
+        print("Decompressed:", hexdump(self.data))
 
-        transaction_count = int.from_bytes(decompressed[0:1], byteorder="big")
+        transaction_count = int.from_bytes(self.data[0:1], byteorder="big")
         transactions = []
         ptr = 1
         for i in range(transaction_count):
-            transaction_struct = decompressed[ptr:]
+            transaction_struct = self.data[ptr:]
 
             action = Action(transaction_struct[0])
             (size, data) = action.parse_transaction(transaction_struct)
