@@ -1,46 +1,44 @@
 from packets.packet import Packet
-from packets.types import UUID, Vec3i
-from packets.hexdump import hexdump
-from enum import IntEnum
-import struct
+from construct import Byte, BytesInteger, Enum, Hex, Int32sb, Int32ub, NamedTuple, Struct, Switch, this
 
-class PlacedOn(IntEnum):
-    TERRAIN_SURFACE = 2
-    TERRAIN_ASSET = 3
-    BODY = 4
-    LIFT = 6
-    JOINT = 8
+vec3i = NamedTuple("vec3i", "z y x", Int32sb[3])
 
-    UNKNOWN = -1
-    
-    def parse_transaction(self, data: bytes):
-        if self == PlacedOn.TERRAIN_SURFACE:
-            return {
-                "unknown_float1": struct.unpack("f", data[0:4])[0],
-                "unknown_float2": struct.unpack("f", data[4:8])[0],
-            }
-        elif self == PlacedOn.TERRAIN_ASSET:
-            return {
-                "unknown_float1": struct.unpack("f", data[0:4])[0],
-                "unknown_float2": struct.unpack("f", data[4:8])[0],
-            }
-        elif self == PlacedOn.BODY:
-            return {
-                "shape_id": int.from_bytes(data[0:4], byteorder="big"),
-                "body_id": int.from_bytes(data[4:8], byteorder="big"),
-            }
-        elif self == PlacedOn.LIFT:
-            return {
-                "unknown_float": struct.unpack("f", data[0:4])[0],
-                "lift_id": int.from_bytes(data[4:8], byteorder="big"),
-            }
-        elif self == PlacedOn.JOINT:
-            return {
-                "unknown_float": struct.unpack("f", data[0:4])[0],
-                "joint_ids": int.from_bytes(data[4:8], byteorder="big"),
-            }
-        else:
-            return hexdump(data)
+uuid = Hex(BytesInteger(16, swapped=True))
+
+packet_0x22 = Struct(
+    "hotbar_index" / Int32ub,
+    "total_quantity" / Int32ub,
+    "size" / vec3i,
+    "local_pos_start" / vec3i,
+    "z_axis" / vec3i,
+    "x_axis" / vec3i,
+    "local_pos" / vec3i,
+    "item_uuid" / uuid,
+    "shape_uuid" / uuid,
+    "placed_on_type" / Enum(Byte, TERRAIN_SURFACE = 2, TERRAIN_ASSET = 3, BODY = 4, LIFT = 6, JOINT = 8),
+    "placed_on" / Switch(this.placed_on_type, {
+        "TERRAIN_SURFACE": Struct(
+            "unknown_0x00" / Hex(BytesInteger(4)),
+            "unknown_0x04" / Hex(BytesInteger(4)),
+        ),
+        "TERRAIN_ASSET": Struct(
+            "unknown_0x00" / Hex(BytesInteger(4)),
+            "unknown_0x04" / Hex(BytesInteger(4)),
+        ),
+        "BODY": Struct(
+            "shape_id" / Int32ub,
+            "body_id" / Int32ub,
+        ),
+        "LIFT": Struct(
+            "unknown_0x00" / Hex(BytesInteger(4)),
+            "lift_id" / Int32ub,
+        ),
+        "JOINT": Struct(
+            "unknown_0x00" / Hex(BytesInteger(4)),
+            "joint_id" / Int32ub,
+        ),
+    }),
+)
 
 class Packet_0x22(Packet):
     """Place"""
@@ -49,18 +47,17 @@ class Packet_0x22(Packet):
         super().__init__(id, data, hidden)
 
     def parse_packet(self):
-        print(hexdump(self.data))
-        return {
-            "hotbar_index": int.from_bytes(self.data[0:4], byteorder="big"),
-            "unknown_0x04": int.from_bytes(self.data[4:8], byteorder="big"),
-            "size": Vec3i(self.data[8:20], byteorder="big", signed=True),
-            "local_pos_start": Vec3i(self.data[20:32], byteorder="big", signed=True),
-            "z_axis": Vec3i(self.data[32:44], byteorder="big", signed=True),
-            "x_axis": Vec3i(self.data[44:56], byteorder="big", signed=True),
-            "local_pos": Vec3i(self.data[56:68], byteorder="big", signed=True),
-            "uuid": UUID(self.data[68:84], byteorder="little"),
-            "uuid2": UUID(self.data[84:100], byteorder="little"),
-            "placed_on_type": PlacedOn(self.data[100]),
-            "placed_on": PlacedOn(self.data[100]).parse_transaction(self.data[101:]),
-        }
+        self.struct = packet_0x22.parse(self.data)
+        return self.struct
+    
+    def modify_packet(self):
+        # self.struct.size = (-3, 3, 3)
+        # self.struct.x_axis = (0, 0, 1)
+        # self.struct.z_axis = (1, 0, 1)
+        # self.struct.shape_uuid = 0x4A1B886B913E4AADB5B66E41B0DB23A6
+        # self.struct.item_uuid = 0x4A1B886B913E4AADB5B66E41B0DB23A6
+        pass
+    
+    def build_packet(self):
+        return packet_0x22.build(self.struct)
     
