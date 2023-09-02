@@ -54,10 +54,17 @@ def process_packet(handle: int, data: bytes):
         if not packet.hidden:
             # hexdump = " ".join(hex(letter)[2:].zfill(2) for letter in data[2:])
             print(f"{direction.name.ljust(8)}\t packet {hex(data[6]).zfill(2)} ({data[6]}): (size={len(data[7:])}) {packet.parse_packet()}")
+        
         packet.modify_packet()
-        payload = bytes([packet.id]) + packet.build_packet()
-        payload = bytes([action.value, direction.value]) + len(payload).to_bytes(4, byteorder="little") + payload
-        response_packets.append(payload)
+
+        built_packets = packet.build_packet()
+        if not isinstance(built_packets, list):
+            built_packets = [built_packets]
+
+        for built_packet in built_packets:
+            payload = bytes([packet.id]) + built_packet
+            payload = bytes([action.value, direction.value]) + len(payload).to_bytes(4, byteorder="little") + payload
+            response_packets.append(payload)
 
 
 

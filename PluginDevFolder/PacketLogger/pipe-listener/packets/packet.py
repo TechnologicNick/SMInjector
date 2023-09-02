@@ -1,5 +1,5 @@
 class Packet:
-    def __init__(self, id, data, hidden=False):
+    def __init__(self, id: int, data: bytes, hidden=False):
         self.id = id
         self.data = data
         self.hidden = hidden
@@ -10,5 +10,5 @@ class Packet:
     def modify_packet(self):
         return
     
-    def build_packet(self):
+    def build_packet(self) -> bytes | list[bytes]:
         return self.data
