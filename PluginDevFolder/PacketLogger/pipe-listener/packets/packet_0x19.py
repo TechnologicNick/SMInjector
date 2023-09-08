@@ -59,7 +59,7 @@ packet_0x19 = Struct(
 )
 
 class Packet_0x19(Packet):
-    """Lua Remote Procedure Call"""
+    """Lua Remote Procedure Call (Server -> Client)"""
 
     def __init__(self, id: int, data: bytes, hidden=False):
         super().__init__(id, data, hidden)
