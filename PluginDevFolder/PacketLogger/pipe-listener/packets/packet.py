@@ -1,3 +1,7 @@
+from construct import setGlobalPrintFullStrings
+
+setGlobalPrintFullStrings(True)
+
 class Packet:
     def __init__(self, id: int, data: bytes, hidden=False):
         self.id = id

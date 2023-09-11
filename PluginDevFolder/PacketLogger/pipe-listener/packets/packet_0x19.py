@@ -3,8 +3,9 @@ from uuid import UUID
 
 from packets.construct_utils import CompressedLZ4Block
 from packets.packet import Packet
-from construct import Byte, BytesInteger, Enum as CEnum, GreedyBytes, GreedyRange, Hex, Prefixed, Struct, Int16ub, Int32ub, Int32ul
+from construct import Byte, BytesInteger, Enum as CEnum, GreedyBytes, GreedyRange, Hex, Prefixed, Struct, Int16ub, Int32ub, Int32ul, Switch, this
 from packets.hexdump import hexdump
+from packets.lua_object import LuaObject
 
 class Namespace(Enum):
     CLIENT_DATA = UUID("940af9b6-d4bc-4f16-9f68-e1b8d0608908")
@@ -44,13 +45,22 @@ uuidToNamespaceScriptType = {
 class RpcType(IntEnum):
     CALLBACK = 0x14
 
+lua_callback = Struct(
+    "callback_name" / Prefixed(Byte, GreedyBytes),
+    "unknown" / Byte,
+    "lua_data" / LuaObject,
+)
+
 rpc = Struct(
     "uuid" / CEnum(BytesInteger(16), **uuidToNamespaceScriptType),
     "unknown" / Int16ub,
     "id" / Int32ul,
     "world_id" / Int16ub,
     "type" / CEnum(Hex(Byte), RpcType),
-    "data" / Prefixed(Int32ub, CompressedLZ4Block(GreedyBytes)),
+    "data" / Prefixed(Int32ub, CompressedLZ4Block(Switch(this.type, {
+        0: lua_callback,
+        "CALLBACK": lua_callback,
+    }, default=GreedyBytes))),
 )
 
 packet_0x19 = Struct(
@@ -69,9 +79,6 @@ class Packet_0x19(Packet):
         self.struct = packet_0x19.parse(self.data)
 
         print(self.struct)
-
-        for rpc in self.struct.rpcs:
-            print(hexdump(rpc.data))
 
         return hexdump(self.data)
     

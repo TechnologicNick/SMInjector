@@ -1,4 +1,5 @@
-from construct import Tunnel
+import base64
+from construct import Adapter, GreedyBytes, StringError, Tunnel, unicodestringtype
 
 def class_to_dict(cls, exclude_keys=["_io"]):
     """Recursively converts class attributes to a dictionary."""
@@ -45,3 +46,67 @@ class CompressedLZ4Block(Tunnel):
 
     def _encode(self, data, context, path):
         return self.lib.compress(data, store_size=False)
+    
+class StringEncodedEx(Adapter):
+    """Used internally."""
+
+    def __init__(self, subcon, encoding, errors="strict"):
+        super().__init__(subcon)
+        if not encoding:
+            raise StringError("String* classes require explicit encoding")
+        self.encoding = encoding
+        self.errors = errors
+
+    def _decode(self, obj: bytes, context, path):
+        return obj.decode(self.encoding, errors=self.errors)
+
+    def _encode(self, obj, context, path):
+        if not isinstance(obj, unicodestringtype):
+            raise StringError("string encoding failed, expected unicode string", path=path)
+        if obj == u"":
+            return b""
+        return obj.encode(self.encoding, errors=self.errors)
+
+    def _emitparse(self, code):
+        return f"({self.subcon._compileparse(code)}).decode({repr(self.encoding)}, errors={repr(self.errors)})"
+
+    def _emitbuild(self, code):
+        raise NotImplementedError
+        # This is not a valid implementation. obj.encode() should be inserted into subcon
+        # return f"({self.subcon._compilebuild(code)}).encode({repr(self.encoding)})"
+
+def GreedyStringEx(encoding, errors="strict"):
+    r"""
+    String that reads entire stream until EOF, and writes a given string as-is. Analog to :class:`~construct.core.GreedyBytes` but also applies unicode-to-bytes encoding.
+
+    :param encoding: string like: utf8 utf16 utf32 ascii
+
+    :raises StringError: building a non-unicode string
+    :raises StreamError: stream failed when reading until EOF
+
+    Example::
+
+        >>> d = GreedyString("utf8")
+        >>> d.build(u"Афон")
+        b'\xd0\x90\xd1\x84\xd0\xbe\xd0\xbd'
+        >>> d.parse(_)
+        u'Афон'
+    """
+    macro = StringEncodedEx(GreedyBytes, encoding, errors)
+    def _emitfulltype(ksy, bitwise):
+        return dict(size_eos=True, type="str", encoding=encoding, errors=errors)
+    macro._emitfulltype = _emitfulltype
+    return macro
+
+class Base64Encoded(Tunnel):
+    def __init__(self, subcon, remove_padding=False):
+        super().__init__(subcon)
+        self.remove_padding = remove_padding
+
+    def _decode(self, data, context, path):
+        return base64.b64decode(data + b"==")
+
+    def _encode(self, data, context, path):
+        if self.remove_padding:
+            data = data.rstrip(b"=")
+        return base64.b64encode(data)

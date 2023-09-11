@@ -20,9 +20,6 @@ class Packet_0x1A(Packet):
 
         print(self.struct)
 
-        for rpc in self.struct.rpcs:
-            print(hexdump(rpc.data))
-
         return hexdump(self.data)
     
     def modify_packet(self):
