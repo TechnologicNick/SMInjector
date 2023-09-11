@@ -108,9 +108,10 @@ class Base64Encoded(Tunnel):
         return base64.b64decode(data + b"==")
 
     def _encode(self, data, context, path):
+        encoded = base64.b64encode(data)
         if self.remove_padding:
-            data = data.rstrip(b"=")
-        return base64.b64encode(data)
+            encoded = encoded.rstrip(b"=")
+        return encoded
 
 class UuidAdapter(Adapter):
     def _decode(self, obj, context, path):
