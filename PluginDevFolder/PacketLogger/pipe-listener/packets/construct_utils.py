@@ -1,5 +1,6 @@
 import base64
-from construct import Adapter, GreedyBytes, StringError, Tunnel, unicodestringtype
+from uuid import UUID
+from construct import Adapter, BytesInteger, GreedyBytes, StringError, Tunnel, unicodestringtype
 
 def class_to_dict(cls, exclude_keys=["_io"]):
     """Recursively converts class attributes to a dictionary."""
@@ -110,3 +111,13 @@ class Base64Encoded(Tunnel):
         if self.remove_padding:
             data = data.rstrip(b"=")
         return base64.b64encode(data)
+
+class UuidAdapter(Adapter):
+    def _decode(self, obj, context, path):
+        print(obj)
+        return str(UUID(int=obj))
+
+    def _encode(self, obj, context, path):
+        return UUID(obj).int
+
+Uuid = UuidAdapter(BytesInteger(16, swapped=True))

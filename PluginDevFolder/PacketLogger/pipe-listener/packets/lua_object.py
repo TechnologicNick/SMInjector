@@ -1,3 +1,4 @@
+from packets.lua_userdata import LuaUserdata
 from packets.construct_utils import Base64Encoded, CompressedLZ4Block
 from construct import Aligned, Array, Bitwise, Byte, Bytewise, Const, Enum, Flag, Float32b, GreedyBytes, Int16sb, Int32sb, Int32ub, Int8sb, LazyBound, Prefixed, Rebuild, Struct, Switch, len_, this
 import enum
@@ -46,7 +47,7 @@ LuaSaveData = Struct(
         "Int16": Bytewise(Int16sb),
         "Int8": Bytewise(Int8sb),
         # "Json": Int32ub,
-        # "Userdata": Int32ub,
+        "Userdata": Bytewise(LuaUserdata),
         # "Unknown_101": Int32ub,
     }, default=Bytewise(GreedyBytes)),
 )
