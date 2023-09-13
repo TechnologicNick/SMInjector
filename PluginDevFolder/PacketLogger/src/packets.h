@@ -11,6 +11,7 @@ namespace PacketLogger {
         SendUnreliablePacket = 2,
         SendMessageToConnection = 3,
         ReceiveMessagesOnPollGroup = 4,
+        ReceivePacket = 5,
 	};
 
     enum Direction : uint8_t {

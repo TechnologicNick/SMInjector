@@ -16,7 +16,7 @@ class Packet_0x34(Packet):
         self.struct = packet_0x34.parse(self.data)
         return self.struct
     
-    def modify_packet(self):
+    def modify_packet(self, direction):
         # self.struct.lift_id = 1
         # self.struct.level_change *= 2
         pass

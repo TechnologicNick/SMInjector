@@ -50,7 +50,7 @@ class Packet_0x22(Packet):
         self.struct = packet_0x22.parse(self.data)
         return self.struct
     
-    def modify_packet(self):
+    def modify_packet(self, direction):
         # self.struct.size = (-3, 3, 3)
         # self.struct.x_axis = (0, 0, 1)
         # self.struct.z_axis = (1, 0, 1)

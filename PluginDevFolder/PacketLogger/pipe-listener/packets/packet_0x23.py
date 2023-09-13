@@ -32,7 +32,7 @@ class Packet_0x23(Packet):
 
         return self.struct
     
-    def modify_packet(self):
+    def modify_packet(self, direction):
         # if self.struct.removed_from_type == "BODY":
         #     (z, y, x) = self.struct.local_pos_low
         #     self.struct.local_pos_low = (z-50, y-50, x-50)

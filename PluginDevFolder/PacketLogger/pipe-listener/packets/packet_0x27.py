@@ -16,7 +16,7 @@ class Packet_0x27(Packet):
 
         return self.struct
     
-    def modify_packet(self):
+    def modify_packet(self, direction):
         # self.struct.joint_id = 18
         pass
     

@@ -16,7 +16,7 @@ class Packet_0x13(Packet):
         self.struct = packet_0x13.parse(self.data)
         return self.struct
     
-    def modify_packet(self):
+    def modify_packet(self, direction):
         # self.struct.message = "balls"
         pass
     

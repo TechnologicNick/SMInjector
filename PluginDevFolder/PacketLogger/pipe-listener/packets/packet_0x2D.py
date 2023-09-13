@@ -25,7 +25,7 @@ class Packet_0x2D(Packet):
 
         return self.struct
     
-    def modify_packet(self):
+    def modify_packet(self, direction):
         # self.struct.lift_id = 522
         # self.blueprint = b'{"bodies":[{"childs":[{"bounds":{"x":1,"y":1,"z":1},"color":"8D8F89","pos":{"x":-2,"y":0,"z":2},"shapeId":"a6c6ce30-dd47-4587-b475-085d55c6a3b4","xaxis":1,"zaxis":3}]}],"version":4}'
         pass

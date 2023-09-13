@@ -1,4 +1,5 @@
 from construct import setGlobalPrintFullStrings
+from packets.direction import Direction
 
 setGlobalPrintFullStrings(True)
 
@@ -11,7 +12,7 @@ class Packet:
     def parse_packet(self):
         return self.data
     
-    def modify_packet(self):
+    def modify_packet(self, direction: Direction):
         return
     
     def build_packet(self) -> bytes | list[bytes]:

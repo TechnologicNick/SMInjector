@@ -16,7 +16,7 @@ class Packet_0x2B(Packet):
 
         return self.struct
     
-    def modify_packet(self):
+    def modify_packet(self, direction):
         # self.struct.lift_id = 522
         pass
     

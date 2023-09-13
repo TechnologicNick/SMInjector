@@ -30,7 +30,7 @@ class Packet_0x2C(Packet):
 
         return self.struct
     
-    def modify_packet(self):
+    def modify_packet(self, direction):
         # self.struct.child_id = 24
         # self.struct.parent_id = 26
         # self.struct.flags = ConnectFlags.CONNECT | ConnectFlags.DISCONNECT | ConnectFlags.PART

@@ -22,7 +22,7 @@ class Packet_0x1A(Packet):
 
         return hexdump(self.data)
     
-    def modify_packet(self):
+    def modify_packet(self, direction):
         pass
     
     def build_packet(self):

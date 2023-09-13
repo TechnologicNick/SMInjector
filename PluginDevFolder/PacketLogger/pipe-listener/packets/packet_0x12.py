@@ -16,7 +16,7 @@ class Packet_0x12(Packet):
         self.struct = packet_0x12.parse(self.data)
         return self.struct
     
-    def modify_packet(self):
+    def modify_packet(self, direction):
         # self.struct.type = "<WARNING>"
         # self.struct.message = "WARNING_TUNNELING"
         pass

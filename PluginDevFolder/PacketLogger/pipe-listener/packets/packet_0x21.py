@@ -18,7 +18,7 @@ class Packet_0x21(Packet):
 
         return self.struct
     
-    def modify_packet(self):
+    def modify_packet(self, direction):
         pass
     
     def build_packet(self):

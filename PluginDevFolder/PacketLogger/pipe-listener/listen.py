@@ -48,14 +48,14 @@ def process_packet(handle: int, data: bytes):
 
     response_packets = []
 
-    if action == Action.SendReliablePacket or action == Action.SendUnreliablePacket:
+    if action == Action.SendReliablePacket or action == Action.SendUnreliablePacket or action == Action.ReceivePacket:
         # response_packets.append(data)
         packet = registry.get_packet(data[6], data[7:])
         if not packet.hidden:
             # hexdump = " ".join(hex(letter)[2:].zfill(2) for letter in data[2:])
             print(f"{direction.name.ljust(8)}\t packet {hex(data[6]).zfill(2)} ({data[6]}): (size={len(data[7:])}) {packet.parse_packet()}")
         
-        packet.modify_packet()
+        packet.modify_packet(direction)
 
         built_packets = packet.build_packet()
         if not isinstance(built_packets, list):
@@ -74,7 +74,7 @@ def process_packet(handle: int, data: bytes):
     #         # hexdump = " ".join(hex(letter)[2:].zfill(2) for letter in data[2:])
     #         print(f"{direction.name.ljust(8)}\t packet {hex(data[6]).zfill(2)} ({data[6]}): (size={len(data[7:])}) {packet.parse_packet()}")
 
-    if action == Action.SendReliablePacket or action == Action.SendUnreliablePacket:
+    if action == Action.SendReliablePacket or action == Action.SendUnreliablePacket or action == Action.ReceivePacket:
         send_response(handle, response_packets)
 
 def send_response(handle: int, response_packets: list[bytes]):
