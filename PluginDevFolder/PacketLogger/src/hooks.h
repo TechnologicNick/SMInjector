@@ -15,6 +15,7 @@ constexpr uint64_t offset_HandleNetworkMessages = 0x44B560;
 constexpr uint64_t offset_NetworkSendInterface_SendReliablePacket = 0x90c8b0;
 constexpr uint64_t offset_NetworkSendInterface_SendUnreliablePacket = 0x90d010;
 constexpr uint64_t offset_SteamNetworkServer_ReceivePacket = 0x8df070;
+constexpr uint64_t offset_SteamNetworkClient_ReceivePacket = 0x4351e0;
 
 struct VolvoStructure
 {
@@ -32,14 +33,16 @@ using fReceiveMessagesOnPollGroup = std::add_pointer< int(void*, HSteamNetPollGr
 using fSendMessageToConnection = std::add_pointer< EResult(void*, HSteamNetConnection, const void*, uint32, int, int64*) >::type;
 using fSendReliablePacket = std::add_pointer< void(const void* self, const void* param_2, const char* data, uint32 size, const uint32 param_5, const uint8 param_6, int* pOutCompressedSize) >::type;
 using fSendUnreliablePacket = std::add_pointer< void(const void* self, const void* param_2, const char* data, uint32 size, const void* param_5, int* pOutCompressedSize) >::type;
-using fReceivePacket = std::add_pointer< void(SteamNetworkServer* self, const void* param_2, const void* param_3, const uint64 iDecompressedSize) >::type;
+using fServerReceivePacket = std::add_pointer< void(SteamNetworkServer* self, const void* player, const void* param_3, const uint64 iDecompressedSize) >::type;
+using fClientReceivePacket = std::add_pointer< int(const void* self, const void* player, const char* data, const uint64 iDecompressedSize, const char param_5) >::type;
 
 fReceiveMessagesOnPollGroup o_Steam_ReceiveMessagesOnPollGroup = nullptr;
 fSendMessageToConnection o_Steam_SendMessageToConnection = nullptr;
 
 GameHook* hck_SendReliablePacket;
 GameHook* hck_SendUnreliablePacket;
-GameHook* hck_ReceivePacket;
+GameHook* hck_ServerReceivePacket;
+GameHook* hck_ClientReceivePacket;
 
 namespace PacketLogger::Hooks {
 
@@ -124,11 +127,11 @@ namespace PacketLogger::Hooks {
         // ((fSendUnreliablePacket)*hck_SendUnreliablePacket)(self, param_2, data, size, param_5, pOutCompressedSize);
     }
 
-    void hook_ReceivePacket(SteamNetworkServer* self, const void* param_2, const void* param_3, const uint64 iDecompressedSize) {
-        //Console::log(Color::Aqua, "ReceivePacket called! %p %p %p %llu", self, param_2, param_3, iDecompressedSize);
+    void hook_ServerReceivePacket(SteamNetworkServer* self, const void* player, const void* param_3, const uint64 iDecompressedSize) {
+        //Console::log(Color::Aqua, "ReceivePacket called! %p %p %p %llu", self, player, param_3, iDecompressedSize);
 
         PacketHeader header = {
-            .action = Action::ReceivePacket,
+            .action = Action::ServerReceivePacket,
             .direction = Direction::Inbound,
             .size = (uint32)iDecompressedSize
         };
@@ -137,7 +140,7 @@ namespace PacketLogger::Hooks {
 
         std::vector<Packet> packets = Logger::SendAndReceivePacket(originalPacket);
         for (const Packet& packet : packets) {
-            if (packet.GetHeader()->action != Action::ReceivePacket) {
+            if (packet.GetHeader()->action != Action::ServerReceivePacket) {
                 continue;
             }
 
@@ -145,11 +148,44 @@ namespace PacketLogger::Hooks {
 
             memcpy_s(self->m_pDecompressedDataBuffer, 0x80000, packet.GetData(), packet.GetHeader()->size);
 
-            ((fReceivePacket)*hck_ReceivePacket)(self, param_2, param_3, packet.GetHeader()->size);
+            ((fServerReceivePacket)*hck_ServerReceivePacket)(self, player, param_3, packet.GetHeader()->size);
 
             Packet::DeletePacket(packet);
         }
     }
+
+int hook_ClientReceivePacket(const void* self, const void* player, const char* data, const uint64 iDecompressedSize, const char param_5) {
+		//Console::log(Color::Aqua, "SteamNetworkClient::ReceivePacket called! %p %p %p %llu %u", self, player, data, iDecompressedSize, param_5);
+
+        if (iDecompressedSize > 0x80000) {
+            Console::log(Color::Red, "Packet size is too big! %llu", iDecompressedSize);
+            return ((fClientReceivePacket)*hck_ClientReceivePacket)(self, player, data, iDecompressedSize, param_5);
+		} 
+
+		PacketHeader header = {
+			.action = Action::ClientReceivePacket,
+			.direction = Direction::Inbound,
+			.size = (uint32)iDecompressedSize
+		};
+
+		Packet originalPacket(header, data);
+
+        int iReadBytes = 0;
+		std::vector<Packet> packets = Logger::SendAndReceivePacket(originalPacket);
+		for (const Packet& packet : packets) {
+			if (packet.GetHeader()->action != Action::ClientReceivePacket) {
+				continue;
+			}
+
+			std::string packetData(packet.GetData(), packet.GetHeader()->size);
+
+			iReadBytes += ((fClientReceivePacket)*hck_ClientReceivePacket)(self, player, packet.GetData(), packet.GetHeader()->size, param_5);
+
+			Packet::DeletePacket(packet);
+		}
+
+		return iReadBytes;
+	}
 
     bool InstallHooks() {
         Console::log(Color::Aqua, "Installing hooks...");
@@ -170,7 +206,8 @@ namespace PacketLogger::Hooks {
 
         hck_SendReliablePacket = GameHooks::Inject(pBaseAddress + offset_NetworkSendInterface_SendReliablePacket, hook_SendReliablePacket, 5);
         hck_SendUnreliablePacket = GameHooks::Inject(pBaseAddress + offset_NetworkSendInterface_SendUnreliablePacket, hook_SendUnreliablePacket, 5);
-        hck_ReceivePacket = GameHooks::Inject(pBaseAddress + offset_SteamNetworkServer_ReceivePacket, hook_ReceivePacket, 6);
+        hck_ServerReceivePacket = GameHooks::Inject(pBaseAddress + offset_SteamNetworkServer_ReceivePacket, hook_ServerReceivePacket, 6);
+        hck_ClientReceivePacket = GameHooks::Inject(pBaseAddress + offset_SteamNetworkClient_ReceivePacket, hook_ClientReceivePacket, 5);
 
         if (!hck_SendReliablePacket) {
 			Console::log(Color::Red, "Failed to inject 'SendReliablePacket'!");
@@ -182,10 +219,15 @@ namespace PacketLogger::Hooks {
             return false;
         }
 
-        if (!hck_ReceivePacket) {
+        if (!hck_ServerReceivePacket) {
 			Console::log(Color::Red, "Failed to inject 'ReceivePacket'");
 			return false;
 		}
+
+        if (!hck_ClientReceivePacket) {
+            Console::log(Color::Red, "Failed to inject 'ReceivePacket'");
+            return false;
+        }
 
         Console::log(Color::Aqua, "Hooks installed!");
         return true;
