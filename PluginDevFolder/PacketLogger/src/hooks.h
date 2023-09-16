@@ -175,7 +175,6 @@ int hook_ClientReceivePacket(const void* self, const void* player, const char* d
 
 		Packet originalPacket(header, data);
 
-        int iReadBytes = 0;
 		std::vector<Packet> packets = Logger::SendAndReceivePacket(originalPacket);
 		for (const Packet& packet : packets) {
 			if (packet.GetHeader()->action != Action::ClientReceivePacket) {
@@ -184,12 +183,12 @@ int hook_ClientReceivePacket(const void* self, const void* player, const char* d
 
 			std::string packetData(packet.GetData(), packet.GetHeader()->size);
 
-			iReadBytes += ((fClientReceivePacket)*hck_ClientReceivePacket)(self, player, packet.GetData(), packet.GetHeader()->size, param_5);
+			int iReadBytes = ((fClientReceivePacket)*hck_ClientReceivePacket)(self, player, packet.GetData(), packet.GetHeader()->size, param_5);
 
 			Packet::DeletePacket(packet);
 		}
 
-		return iReadBytes;
+		return (int)iDecompressedSize;
 	}
 
     bool InstallHooks() {
