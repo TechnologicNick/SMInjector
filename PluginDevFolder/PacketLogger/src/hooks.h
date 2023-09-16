@@ -4,6 +4,7 @@
 #include <type_traits>
 #include <gamehook.h>
 #include <vector>
+#include <intrin.h>
 
 #include "steam.h"
 #include "logger.h"
@@ -52,14 +53,14 @@ namespace PacketLogger::Hooks {
         SteamNetworkingMessage_t** outMsg = ppOutMessages;
         for (int i = 0; i < numMessages; i++) {
             SteamNetworkingMessage_t* message = outMsg[i];
-            PacketLogger::Logger::LogInboundPacket(message);
+            PacketLogger::Logger::LogInboundPacket(message, _ReturnAddress());
         }
 
         return numMessages;
     }
 
     int hook_Steam_SendMessageToConnection(void* self, HSteamNetConnection hConn, const void* pData, uint32 cbData, int nSendFlags, int64* pOutMessageNumber) {
-		PacketLogger::Logger::LogOutboundPacket(hConn, pData, cbData, nSendFlags, pOutMessageNumber);
+		PacketLogger::Logger::LogOutboundPacket(hConn, pData, cbData, nSendFlags, pOutMessageNumber, _ReturnAddress());
         return o_Steam_SendMessageToConnection(self, hConn, pData, cbData, nSendFlags, pOutMessageNumber);
     }
 
@@ -81,7 +82,8 @@ namespace PacketLogger::Hooks {
         PacketHeader header = {
             .action = Action::SendReliablePacket,
             .direction = Direction::Outbound,
-            .size = size
+            .return_address = uint64_t(_ReturnAddress()),
+            .size = size,
         };
 
         Packet originalPacket(header, data);
@@ -106,7 +108,8 @@ namespace PacketLogger::Hooks {
         PacketHeader header = {
 			.action = Action::SendUnreliablePacket,
 			.direction = Direction::Outbound,
-			.size = size
+            .return_address = uint64_t(_ReturnAddress()),
+			.size = size,
 		};
 
         Packet originalPacket(header, data);
@@ -133,7 +136,8 @@ namespace PacketLogger::Hooks {
         PacketHeader header = {
             .action = Action::ServerReceivePacket,
             .direction = Direction::Inbound,
-            .size = (uint32)iDecompressedSize
+            .return_address = uint64_t(_ReturnAddress()),
+            .size = (uint32)iDecompressedSize,
         };
 
         Packet originalPacket(header, self->m_pDecompressedDataBuffer);
@@ -165,7 +169,8 @@ int hook_ClientReceivePacket(const void* self, const void* player, const char* d
 		PacketHeader header = {
 			.action = Action::ClientReceivePacket,
 			.direction = Direction::Inbound,
-			.size = (uint32)iDecompressedSize
+            .return_address = uint64_t(_ReturnAddress()),
+			.size = (uint32)iDecompressedSize,
 		};
 
 		Packet originalPacket(header, data);

@@ -84,7 +84,7 @@ namespace PacketLogger::Logger {
 		return true;
 	}
 
-	void LogInboundPacket(SteamNetworkingMessage_t* message) {
+	void LogInboundPacket(SteamNetworkingMessage_t* message, void* returnAddress) {
 		if (message->m_cbSize <= 0 || message->m_pData == nullptr) {
 			return;
 		}
@@ -92,7 +92,8 @@ namespace PacketLogger::Logger {
 		PacketHeader header = {
 			.action = Action::ReceiveMessagesOnPollGroup,
 			.direction = Direction::Inbound,
-			.size = uint32_t(message->m_cbSize)
+			.return_address = uint64_t(returnAddress),
+			.size = uint32_t(message->m_cbSize),
 		};
 
 		Packet packet(header, (const char*)message->m_pData);
@@ -102,7 +103,7 @@ namespace PacketLogger::Logger {
 		Packet::DeletePacket(packet);
 	}
 	
-    void LogOutboundPacket(HSteamNetConnection& hConn, const void*& pData, uint32& cbData, int& nSendFlags, int64*& pOutMessageNumber) {
+    void LogOutboundPacket(HSteamNetConnection& hConn, const void*& pData, uint32& cbData, int& nSendFlags, int64*& pOutMessageNumber, void* returnAddress) {
 		if (cbData == 0 || pData == nullptr) {
 			return;
 		}
@@ -110,7 +111,8 @@ namespace PacketLogger::Logger {
 		PacketHeader header = {
 			.action = Action::SendMessageToConnection,
 			.direction = Direction::Outbound,
-			.size = cbData
+			.return_address = uint64_t(returnAddress),
+			.size = cbData,
 		};
 
 		Packet packet(header, (const char*)pData);

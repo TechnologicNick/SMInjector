@@ -24,6 +24,7 @@ namespace PacketLogger {
     struct PacketHeader {
         Action action;
         Direction direction;
+        uint64_t return_address;
         uint32_t size;
     };
 #pragma pack(pop)

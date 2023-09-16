@@ -1,5 +1,7 @@
 import time
+from construct import Byte, Enum, GreedyBytes, Hex, Int32ul, Int64ul, Prefixed, PrefixedArray, Struct
 import win32pipe, win32file, pywintypes
+from packets.hexdump import hexdump
 from packets.registry import PacketRegistry
 from packets.direction import Direction
 from packets.action import Action
@@ -37,23 +39,32 @@ def pipe_client():
                 time.sleep(1)
             elif e.args[0] == 109:
                 print("broken pipe, bye bye")
-                quit = True
+                # quit = True
+
+PacketHeader = Struct(
+    "action" / Enum(Byte, Action),
+    "direction" / Enum(Byte, Direction),
+    "return_address" / Hex(Int64ul),
+    "data" / Prefixed(Int32ul, GreedyBytes),
+)
 
 def process_packet(handle: int, data: bytes):
-    action = Action(data[0])
-    direction = Direction(data[1])
-    size = int.from_bytes(data[2:6], byteorder="little")
-
-    # print(f"{action.name} {direction.name} {size}: {data}")
+    header = PacketHeader.parse(data)
+    action = Action(int(header.action))
+    direction = Direction(int(header.direction))
 
     response_packets = []
 
-    if action == Action.SendReliablePacket or action == Action.SendUnreliablePacket or action == Action.ServerReceivePacket or action == Action.ClientReceivePacket:
-        # response_packets.append(data)
-        packet = registry.get_packet(data[6], data[7:])
+    if action in [Action.SendReliablePacket, Action.SendUnreliablePacket, Action.ServerReceivePacket, Action.ClientReceivePacket]:
+        packet = registry.get_packet(header.data[0], header.data[1:])
         if not packet.hidden:
-            # hexdump = " ".join(hex(letter)[2:].zfill(2) for letter in data[2:])
-            print(f"{direction.name.ljust(8)}\t packet {hex(data[6]).zfill(2)} ({data[6]}): (size={len(data[7:])}) {packet.parse_packet()}")
+            dir = direction.name.ljust(8)
+            id_hex = "0x" + hex(packet.id)[2:].zfill(2)
+            id_dec = packet.id
+            ret_addr = hex(header.return_address)[2:].zfill(16)
+            size = len(header.data[1:])
+
+            print(f"\033c{dir} packet {id_hex} ({id_dec}) from {ret_addr}: (size={size}) {packet.parse_packet()}")
         
         packet.modify_packet(direction)
 
@@ -62,30 +73,21 @@ def process_packet(handle: int, data: bytes):
             built_packets = [built_packets]
 
         for built_packet in built_packets:
-            payload = bytes([packet.id]) + built_packet
-            payload = bytes([action.value, direction.value]) + len(payload).to_bytes(4, byteorder="little") + payload
-            response_packets.append(payload)
+            header.data = packet.id.to_bytes(1) + built_packet
+            response_packets.append(PacketHeader.build(header))
 
-
-
-    # if action == Action.SendMessageToConnection or action == Action.ReceiveMessagesOnPollGroup:
-    #     packet = registry.get_packet(data[6], data[7:])
-    #     if not packet.hidden:
-    #         # hexdump = " ".join(hex(letter)[2:].zfill(2) for letter in data[2:])
-    #         print(f"{direction.name.ljust(8)}\t packet {hex(data[6]).zfill(2)} ({data[6]}): (size={len(data[7:])}) {packet.parse_packet()}")
-
-    if action == Action.SendReliablePacket or action == Action.SendUnreliablePacket or action == Action.ServerReceivePacket or action == Action.ClientReceivePacket:
+    if action in [Action.SendReliablePacket, Action.SendUnreliablePacket, Action.ServerReceivePacket, Action.ClientReceivePacket]:
         send_response(handle, response_packets)
+
+PipeResponse = PrefixedArray(Byte, GreedyBytes)
 
 def send_response(handle: int, response_packets: list[bytes]):
     # Prepend the length of the array as one byte, then concatenate all the packets
-    data = bytes([len(response_packets)]) + b"".join(response_packets)
+    data = PipeResponse.build(response_packets)
 
-    # print(f"Sending response: {data}")
+    # print(f"Sending response: {hexdump(data)}")
 
     (result, bytes_written) = win32file.WriteFile(handle, data)
-    # (result, bytes_written) = win32file.WriteFile(handle, b"\x00")
-
 
 if __name__ == "__main__":
     pipe_client()
