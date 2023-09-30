@@ -57,6 +57,8 @@ def process_packet(handle: int, data: bytes):
 
     if action in [Action.SendReliablePacket, Action.SendUnreliablePacket, Action.ServerReceivePacket, Action.ClientReceivePacket]:
         packet = registry.get_packet(header.data[0], header.data[1:])
+        parsed_packet = packet.parse_packet()
+        
         if not packet.hidden:
             dir = direction.name.ljust(8)
             id_hex = "0x" + hex(packet.id)[2:].zfill(2)
@@ -64,7 +66,7 @@ def process_packet(handle: int, data: bytes):
             ret_addr = hex(header.return_address)[2:].zfill(16)
             size = len(header.data[1:])
 
-            print(f"\033c{dir} packet {id_hex} ({id_dec}) from {ret_addr}: (size={size}) {packet.parse_packet()}")
+            print(f"\033c{dir} packet {id_hex} ({id_dec}) from {ret_addr}: (size={size}) {parsed_packet}")
         
         packet.modify_packet(direction)
 
