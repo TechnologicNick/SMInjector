@@ -90,7 +90,7 @@ namespace PacketLogger::Logger {
 		}
 
 		PacketHeader header = {
-			.action = Action::ReceiveMessagesOnPollGroup,
+			.action = Action::ReceiveMessagesOnConnection,
 			.direction = Direction::Inbound,
 			.return_address = uint64_t(returnAddress),
 			.size = uint32_t(message->m_cbSize),

@@ -10,7 +10,7 @@ namespace PacketLogger {
         SendReliablePacket = 1,
         SendUnreliablePacket = 2,
         SendMessageToConnection = 3,
-        ReceiveMessagesOnPollGroup = 4,
+        ReceiveMessagesOnConnection = 4,
         ServerReceivePacket = 5,
         ClientReceivePacket = 6,
 	};
