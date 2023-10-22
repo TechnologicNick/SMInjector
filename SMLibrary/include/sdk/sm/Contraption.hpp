@@ -21,9 +21,7 @@ namespace SM {
         void* field8_0x40;
     public:
         std::shared_ptr<void*> m_pDirectoryManager;
-    private:
-        void* field11_0x58;
-        void* field12_0x60;
+        std::shared_ptr<void*> m_pConsole;
     public:
         uint32_t m_uScreenTargetX;
         uint32_t m_uScreenTargetY;
