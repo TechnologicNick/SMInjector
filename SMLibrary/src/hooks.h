@@ -11,8 +11,13 @@ GameHook *hck_init_console;
 // =============
 
 namespace Hooks {
+	GameHook* pHookAllocConsole;
+
+	BOOL Hook_ReturnTrue() {
+		return true;
+	}
+
 	void hook_init_console(void* a, void* b) {
-		FreeConsole();
 		((pinit_console)*hck_init_console)(a, b);
 		PostConsoleInjections();
 		return;

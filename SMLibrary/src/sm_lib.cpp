@@ -44,6 +44,27 @@ fs::path GetDllPath(HMODULE hModule) {
 	return fs::path(dllPath);
 }
 
+bool AllocConsoleNow() {
+	if (!AllocConsole()) {
+		MessageBox(NULL, TEXT("[SMInjector] Unable to allocate debug console"), TEXT("Error"), MB_OK | MB_ICONERROR);
+		return false;
+	}
+
+	SetConsoleTitle(TEXT("Debug Console"));
+	SetConsoleScreenBufferSize(stdout, { 0x100, 0x100 });
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_RED);
+
+	if (!SetConsoleOutputCP(CP_UTF8)) {
+		MessageBox(NULL, TEXT("[SMInjector] Unable to set console output codepage to UTF-8"), TEXT("Error"), MB_OK | MB_ICONERROR);
+	}
+
+	return true;
+}
+
+void PreventConsoleRealloc() {
+	Hooks::pHookAllocConsole = GameHooks::InjectFromName("kernel32.dll", "AllocConsole", Hooks::Hook_ReturnTrue, 6);
+}
+
 BOOL Startup() {
 	SignatureScanner sigScanner(L"ScrapMechanic.exe");
 	if (!sigScanner.readMemory()) {
@@ -57,12 +78,17 @@ BOOL Startup() {
 
 	hck_init_console = GameHooks::Inject((void*)initConsole, &Hooks::hook_init_console, 5);
 
+	// Allocate the console before the game does
+	if (AllocConsoleNow()) {
+		Console::log_open();
+		Console::log(Color::Aqua, "Allocated console");
+		PreventConsoleRealloc();
+	}
+
 	return true;
 }
 
 BOOL PostConsoleInjections() {
-	Console::log_open();
-
 	PluginConfig::setConfigDirectory(smlibrarydllPath.parent_path() / "config");
 
 	Console::log(Color::Aqua, "Installing the library functions");
