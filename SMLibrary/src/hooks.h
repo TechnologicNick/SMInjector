@@ -16,10 +16,4 @@ namespace Hooks {
 	BOOL Hook_ReturnTrue() {
 		return true;
 	}
-
-	void hook_init_console(void* a, void* b) {
-		((pinit_console)*hck_init_console)(a, b);
-		PostConsoleInjections();
-		return;
-	}
 }

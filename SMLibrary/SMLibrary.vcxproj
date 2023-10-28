@@ -90,6 +90,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\console.h" />
+    <ClInclude Include="include\Event\Event.hpp" />
+    <ClInclude Include="include\Event\EventBus.hpp" />
+    <ClInclude Include="include\Event\ProcessCreateEvent.hpp" />
     <ClInclude Include="include\gamehook.h" />
     <ClInclude Include="include\hexdump.h" />
     <ClInclude Include="include\hook.h" />
