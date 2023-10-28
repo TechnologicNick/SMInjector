@@ -117,7 +117,7 @@ namespace GameHooks {
 		// page_address - target_addres - 5
 
 		// Make the first 5 bytes point towards the page with the absolute jump
-		*(char*)((longlong)dst) = 0xE9;
+		*(char*)((longlong)dst) = (char)0xE9;
 		// Make sure this is within the 2GB range !!!!!!!!
 		*(int*)((longlong)dst + 1) = (int)((longlong)context->page_address - (longlong)dst - 5);
 	
