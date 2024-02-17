@@ -141,26 +141,26 @@ bool Inject(HANDLE hProc, const wchar_t* path) {
 
 	const size_t path_length = wcslen(path) * 2;
 
-	LPVOID lpvoid = VirtualAllocEx(hProc, NULL, path_length, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
-	if(!lpvoid) {
+	LPVOID pMem = VirtualAllocEx(hProc, NULL, path_length, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	if(!pMem) {
 		return false;
 	}
 
-	WriteProcessMemory(hProc, lpvoid, path, path_length, NULL);
+	WriteProcessMemory(hProc, pMem, path, path_length, NULL);
 	HMODULE kernel32 = GetModuleHandleA("kernel32.dll");
 	if(!kernel32) {
 		return false;
 	}
 
 	LPVOID LoadLibAddr = (LPVOID)GetProcAddress(kernel32, "LoadLibraryW");
-	HANDLE threadID = CreateRemoteThread(hProc, NULL, NULL, (LPTHREAD_START_ROUTINE)LoadLibAddr, lpvoid, NULL, NULL);
-	if(!threadID) {
+	HANDLE hThread = CreateRemoteThread(hProc, NULL, NULL, (LPTHREAD_START_ROUTINE)LoadLibAddr, pMem, NULL, NULL);
+	if(!hThread) {
 		return false;
 	}
 
-	WaitForSingleObject(threadID, INFINITE);
-	VirtualFreeEx(hProc, lpvoid, 0, MEM_RELEASE);
-	CloseHandle(threadID);
+	WaitForSingleObject(hThread, INFINITE);
+	VirtualFreeEx(hProc, pMem, 0, MEM_RELEASE);
+	CloseHandle(hThread);
 	return true;
 }
 

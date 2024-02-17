@@ -2,6 +2,7 @@
 
 // Ensure std::string is 32 bytes
 #pragma push_macro("_ITERATOR_DEBUG_LEVEL")
+#undef _ITERATOR_DEBUG_LEVEL
 #define _ITERATOR_DEBUG_LEVEL 0
 #define _ALLOW_ITERATOR_DEBUG_LEVEL_MISMATCH 1
 

@@ -74,7 +74,7 @@
     <ClInclude Include="include\Event\EventBus.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\Event\ProcessCreateEvent.hpp">
+    <ClInclude Include="include\Event\ProcessStartEvent.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\Event\Event.hpp">

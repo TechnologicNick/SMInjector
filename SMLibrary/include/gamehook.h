@@ -1,7 +1,6 @@
-#include "stdafx.h"
+#pragma once
 
-#ifndef __GAMEHOOK_H__
-#define __GAMEHOOK_H__
+#include "stdafx.h"
 
 typedef void* GameHook;
 typedef long long longlong;
@@ -11,6 +10,8 @@ typedef long long longlong;
 #include <map>
 #endif
 
+#include "../include/console.h"
+using Console::Color;
 
 namespace GameHooks {
 #ifndef _SM_LIBRARY_BUILD_PLUGIN
@@ -160,16 +161,25 @@ namespace GameHooks {
 			return new_context->last_hook;
 		}
 	}
-	
-	_LIB_EXPORT	GameHook* InjectFromName(const char* module_name, const char* proc_name, void* hook_function, int length) {
+
+	_LIB_EXPORT	GameHook* InjectFromName(const char* module_name, const char* proc_name, int offset, void* hook_function, int length) {
 		HMODULE hModule = GetModuleHandleA(module_name);
-		if(!hModule) {
-			//printf("The module '%s' was not found\n", module_name);
+		if (!hModule) {
+			Console::log(Color::LightRed, "[InjectFromName] The module '%s' was not found\n", module_name);
 			return nullptr;
 		}
-	
-		void* target = GetProcAddress(hModule, proc_name);
-		return GameHooks::Inject(target, hook_function, length);
+
+		FARPROC target = GetProcAddress(hModule, proc_name);
+		if (!target) {
+			Console::log(Color::LightRed, "[InjectFromName] The function '%s' was not found in module '%s'\n", proc_name, module_name);
+			return nullptr;
+		}
+
+		return GameHooks::Inject((void*)((uint64_t)target + offset), hook_function, length);
+	}
+
+	_LIB_EXPORT	GameHook* InjectFromName(const char* module_name, const char* proc_name, void* hook_function, int length) {
+		return GameHooks::InjectFromName(module_name, proc_name, 0, hook_function, length);
 	}
 #else
 	_LIB_IMPORT GameHook* InjectFromName(const char* module_name, const char* proc_name, void* hook_function, int length);
@@ -177,5 +187,3 @@ namespace GameHooks {
 #endif
 
 }
-
-#endif

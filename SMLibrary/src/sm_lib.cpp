@@ -1,3 +1,5 @@
+#include "../include/stdafx.h"
+
 #include <process.h>
 #include <windows.h>
 #include <stdio.h>
@@ -20,8 +22,6 @@ using Console::Color;
 #include "../include/sigscan.h"
 
 #include "hooks.h"
-
-#include "../include/Event/ProcessCreateEvent.hpp"
 
 namespace SMLibrary {
 	using namespace SMLibrary::Event;
@@ -83,7 +83,7 @@ namespace SMLibrary {
 		}
 	}
 
-	void Startup(const fs::path& pDllPath) {
+	void OnInject(const fs::path& pDllPath) {
 		// Allocate the console before the game does
 		if (AllocConsoleNow()) {
 			Console::log_open();
@@ -95,7 +95,10 @@ namespace SMLibrary {
 
 		PluginConfig::setConfigDirectory(pDllPath.parent_path() / "config");
 
-		GetEventBus<ProcessCreateEvent>().Emit({});
+		if (!Hooks::InstallHooks()) {
+			Console::log(Color::LightRed, "Failed to install hooks");
+			return;
+		}
 	}
 }
 
@@ -105,7 +108,7 @@ BOOL WINAPI DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpReserved) {
 		case DLL_PROCESS_ATTACH:
 			MessageBox(0, L"From DLL\n", L"Process Attach", MB_ICONINFORMATION);
 
-			SMLibrary::Startup(SMLibrary::GetDllPath(hModule));
+			SMLibrary::OnInject(SMLibrary::GetDllPath(hModule));
 			break;
 
 		case DLL_PROCESS_DETACH:
