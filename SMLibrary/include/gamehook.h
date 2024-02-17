@@ -182,6 +182,7 @@ namespace GameHooks {
 		return GameHooks::InjectFromName(module_name, proc_name, 0, hook_function, length);
 	}
 #else
+	_LIB_IMPORT	GameHook* InjectFromName(const char* module_name, const char* proc_name, int offset, void* hook_function, int length);
 	_LIB_IMPORT GameHook* InjectFromName(const char* module_name, const char* proc_name, void* hook_function, int length);
 	_LIB_IMPORT GameHook* Inject(void* target_function, void* hook_function, int length);
 #endif
