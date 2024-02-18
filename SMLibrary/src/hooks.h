@@ -14,7 +14,7 @@ namespace Hooks {
 	using p_get_wide_winmain_command_line = std::add_pointer<decltype(_get_wide_winmain_command_line)>::type;
 
 	GameHook* pHookAllocConsole;
-	GameHook* pHookProcessStart;
+	p_get_wide_winmain_command_line original_get_wide_winmain_command_line;
 
 	BOOL Hook_ReturnTrue() {
 		return true;
@@ -27,19 +27,24 @@ namespace Hooks {
 
 		GetEventBus<ProcessStartEvent>()->Emit({});
 
-		return ((p_get_wide_winmain_command_line)*pHookProcessStart)();
+		return original_get_wide_winmain_command_line();
 	}
 
 	bool InstallHooks() {
 		Console::log(Color::Aqua, "Installing hooks...");
 
-		// The target function has no prologue, so we must skip past the instructions that write to registers used by the trampoline function.
-		pHookProcessStart = GameHooks::InjectFromName("ucrtbase.dll", "_get_wide_winmain_command_line", +14, Hook_ProcessStart, 6);
+		original_get_wide_winmain_command_line = (p_get_wide_winmain_command_line)GameHooks::InjectFromImportAddressTable(
+			GetModuleHandle(NULL),
+			"api-ms-win-crt-runtime-l1-1-0.dll",
+			"_get_wide_winmain_command_line",
+			(FARPROC)Hook_ProcessStart
+		);
 
-		if (!pHookProcessStart) {
-			Console::log(Color::LightRed, "Failed to install hook for ProcessStart");
+		if (!original_get_wide_winmain_command_line) {
+			Console::log(Color::LightRed, "Unable to find process start function");
 			return false;
 		}
+		Console::log(Color::Aqua, "Found process start function at %p", original_get_wide_winmain_command_line);
 
 		Console::log(Color::Aqua, "Hooks installed!");
 		return true;
