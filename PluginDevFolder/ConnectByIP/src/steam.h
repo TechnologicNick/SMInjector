@@ -4,6 +4,7 @@
 #pragma warning(disable : 4996)
 #include <sdk/steam/steam_api.h>
 #include <sdk/steam/steam_gameserver.h>
+#include <sdk/steam/steamclientpublic.h>
 #pragma warning(pop)
 
 #pragma comment(lib, "sdk/steam_api64.lib")
