@@ -9,6 +9,9 @@
 #include "steam.h"
 #include "logger.h"
 
+#include <Event/EventBus.hpp>
+#include <Event/SteamInitializedEvent.hpp>
+
 #include <console.h>
 using Console::Color;
 
@@ -30,8 +33,8 @@ struct SteamNetworkServer
 };
 
 using fGetNetworkingSocketInterface = std::add_pointer< uint64_t(VolvoStructure***) >::type;
-using fReceiveMessagesOnConnection = std::add_pointer< decltype(ISteamNetworkingSockets::ReceiveMessagesOnConnection) >::type;
-using fSendMessageToConnection = std::add_pointer< EResult(void*, HSteamNetConnection, const void*, uint32, int, int64*) >::type;
+using fReceiveMessagesOnConnection = std::add_pointer< int(ISteamNetworkingSockets*, HSteamNetConnection, SteamNetworkingMessage_t**, int) >::type;
+using fSendMessageToConnection = std::add_pointer< EResult(ISteamNetworkingSockets*, HSteamNetConnection, const void*, uint32, int, int64*) >::type;
 using fSendReliablePacket = std::add_pointer< void(const void* self, const void* param_2, const char* data, uint32 size, const uint32 param_5, const uint8 param_6, int* pOutCompressedSize) >::type;
 using fSendUnreliablePacket = std::add_pointer< void(const void* self, const void* param_2, const char* data, uint32 size, const void* param_5, int* pOutCompressedSize) >::type;
 using fServerReceivePacket = std::add_pointer< void(SteamNetworkServer* self, const void* player, const void* param_3, const uint64 iDecompressedSize) >::type;
@@ -47,7 +50,7 @@ GameHook* hck_ClientReceivePacket;
 
 namespace PacketLogger::Hooks {
 
-    int hook_Steam_ReceiveMessagesOnConnection(void* self, HSteamNetConnection hConn, SteamNetworkingMessage_t** ppOutMessages, int nMaxMessages) {
+    int hook_Steam_ReceiveMessagesOnConnection(ISteamNetworkingSockets* self, HSteamNetConnection hConn, SteamNetworkingMessage_t** ppOutMessages, int nMaxMessages) {
         int numMessages = o_Steam_ReceiveMessagesOnConnection(self, hConn, ppOutMessages, nMaxMessages);
 		
         SteamNetworkingMessage_t** outMsg = ppOutMessages;
@@ -59,7 +62,7 @@ namespace PacketLogger::Hooks {
         return numMessages;
     }
 
-    int hook_Steam_SendMessageToConnection(void* self, HSteamNetConnection hConn, const void* pData, uint32 cbData, int nSendFlags, int64* pOutMessageNumber) {
+    int hook_Steam_SendMessageToConnection(ISteamNetworkingSockets* self, HSteamNetConnection hConn, const void* pData, uint32 cbData, int nSendFlags, int64* pOutMessageNumber) {
 		PacketLogger::Logger::LogOutboundPacket(hConn, pData, cbData, nSendFlags, pOutMessageNumber, _ReturnAddress());
         return o_Steam_SendMessageToConnection(self, hConn, pData, cbData, nSendFlags, pOutMessageNumber);
     }
@@ -158,7 +161,7 @@ namespace PacketLogger::Hooks {
         }
     }
 
-int hook_ClientReceivePacket(const void* self, const void* player, const char* data, const uint64 iDecompressedSize, const char param_5) {
+    int hook_ClientReceivePacket(const void* self, const void* player, const char* data, const uint64 iDecompressedSize, const char param_5) {
 		//Console::log(Color::Aqua, "SteamNetworkClient::ReceivePacket called! %p %p %p %llu %u", self, player, data, iDecompressedSize, param_5);
 
         if (iDecompressedSize > 0x80000) {
@@ -191,20 +194,32 @@ int hook_ClientReceivePacket(const void* self, const void* player, const char* d
 		return (int)iDecompressedSize;
 	}
 
-    bool InstallHooks() {
-        Console::log(Color::Aqua, "Installing hooks...");
+    void InstallSteamHooks() {
+        Console::log(Color::Aqua, "Installing Steam hooks...");
 
         VolvoStructure** ptr = GetVolvoStructure();
         o_Steam_ReceiveMessagesOnConnection = (fReceiveMessagesOnConnection)(*ptr)->m_functions[14];
-		o_Steam_SendMessageToConnection = (fSendMessageToConnection)(*ptr)->m_functions[11];
+        o_Steam_SendMessageToConnection = (fSendMessageToConnection)(*ptr)->m_functions[11];
 
-		LPVOID pAddress = (LPVOID)&(*ptr)->m_functions[0];
+        LPVOID pAddress = (LPVOID) & (*ptr)->m_functions[0];
         SIZE_T dwSize = sizeof(pAddress) * 14;
         DWORD oldProtect = 0;
         VirtualProtect(pAddress, dwSize, PAGE_READWRITE, &oldProtect);
         (*ptr)->m_functions[14] = &hook_Steam_ReceiveMessagesOnConnection;
-		(*ptr)->m_functions[11] = &hook_Steam_SendMessageToConnection;
+        (*ptr)->m_functions[11] = &hook_Steam_SendMessageToConnection;
         VirtualProtect(pAddress, dwSize, oldProtect, NULL);
+
+        Console::log(Color::Aqua, "Steam hooks installed!");
+    }
+
+    bool InstallHooks() {
+        using namespace SMLibrary::Event;
+        
+        Console::log(Color::Aqua, "Installing hooks...");
+
+        GetEventBus<SteamInitializedEvent>()->RegisterHandler([](const SteamInitializedEvent& event) {
+			InstallSteamHooks();
+		});
 
         const PBYTE pBaseAddress = PBYTE(GetModuleHandle(NULL));
 
