@@ -65,8 +65,9 @@ def process_packet(handle: int, data: bytes):
             id_dec = packet.id
             ret_addr = hex(header.return_address)[2:].zfill(16)
             size = len(header.data[1:])
+            clear_screen = "\033c" if False else ""
 
-            print(f"\033c{dir} packet {id_hex} ({id_dec}) from {ret_addr}: (size={size}) {parsed_packet}")
+            print(f"{clear_screen}{dir} packet {id_hex} {packet} from {ret_addr}: (size={size}) {parsed_packet}")
         
         packet.modify_packet(direction)
 

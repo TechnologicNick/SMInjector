@@ -1,3 +1,4 @@
+from packets.packet_0x01 import Packet_0x01
 from packets.packet_0x06 import Packet_0x06
 from packets.packet_0x12 import Packet_0x12
 from packets.packet_0x13 import Packet_0x13
@@ -23,6 +24,7 @@ from packets.packet_0xXX import Packet_0xXX
 class PacketRegistry:
     def __init__(self):
         self.packets = {
+            0x01: Packet_0x01,
             0x06: Packet_0x06,
             0x12: Packet_0x12,
             0x13: Packet_0x13,
