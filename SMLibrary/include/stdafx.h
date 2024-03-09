@@ -16,3 +16,5 @@
 
 #define PLUGIN_SUCCESSFULL 1
 #define PLUGIN_ERROR 0
+
+#include "sdk/sm/Types.hpp"

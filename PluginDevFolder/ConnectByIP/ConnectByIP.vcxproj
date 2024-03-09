@@ -10,27 +10,33 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\ConnectByIP_Hooks.hpp" />
+    <ClInclude Include="src\steam.h" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{81368e09-9fa2-4f28-9915-22fe758bfd48}</ProjectGuid>
-    <RootNamespace>SMLibrary</RootNamespace>
+    <ProjectGuid>{35f4fbb8-9022-492d-8465-775cd3de07a0}</ProjectGuid>
+    <RootNamespace>ConnectByIP</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>SMLibrary</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -46,26 +52,39 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <SourcePath>$(SourcePath)</SourcePath>
+    <IncludePath>$(SolutionDir)..\SMLibrary\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(OutDir);$(SolutionDir)..\SMLibrary\include;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <SourcePath>$(SourcePath)</SourcePath>
+    <IncludePath>$(SolutionDir)..\SMLibrary\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(OutDir);$(SolutionDir)..\SMLibrary\include;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;SMPLUGINTEMPLATE_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <Optimization>MaxSpeed</Optimization>
-      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PrecompiledHeaderFile>
+      </PrecompiledHeaderFile>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableUAC>false</EnableUAC>
+      <AdditionalDependencies>smlibrary.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>if not exist "$(OutputPath)plugins\" mkdir "$(OutputPath)plugins\"
+copy /B "$(LocalDebuggerCommand)" "$(OutputPath)plugins\$(TargetFileName)"</Command>
+    </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -73,55 +92,31 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;SMPLUGINTEMPLATE_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PrecompiledHeaderFile>
+      </PrecompiledHeaderFile>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableUAC>false</EnableUAC>
+      <AdditionalDependencies>smlibrary.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>if not exist "$(OutputPath)plugins\" mkdir "$(OutputPath)plugins\"
+copy /B "$(LocalDebuggerCommand)" "$(OutputPath)plugins\$(TargetFileName)"</Command>
+    </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClCompile Include="src\hook.cpp" />
-    <ClCompile Include="src\sm_lib.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="include\console.h" />
-    <ClInclude Include="include\Event\ConnectToServerEvent.hpp" />
-    <ClInclude Include="include\Event\Event.hpp" />
-    <ClInclude Include="include\Event\EventBus.hpp" />
-    <ClInclude Include="include\Event\ProcessStartEvent.hpp" />
-    <ClInclude Include="include\Event\SteamInitializedEvent.hpp" />
-    <ClInclude Include="include\gamehook.h" />
-    <ClInclude Include="include\hexdump.h" />
-    <ClInclude Include="include\hook.h" />
-    <ClInclude Include="include\path_helper.h" />
-    <ClInclude Include="include\plugin_config.h" />
-    <ClInclude Include="include\sdk\sm\Contraption.hpp" />
-    <ClInclude Include="include\sdk\sm\GameInfo.hpp" />
-    <ClInclude Include="include\sdk\sm\GameStartupParams.hpp" />
-    <ClInclude Include="include\sdk\sm\Globals.hpp" />
-    <ClInclude Include="include\sdk\sm\ScrapMechanic.hpp" />
-    <ClInclude Include="include\sdk\sm\Types.hpp" />
-    <ClInclude Include="include\sigscan.h" />
-    <ClInclude Include="include\sm_lib.h" />
-    <ClInclude Include="include\stdafx.h" />
-    <ClInclude Include="src\hooks.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="..\SMInjector\packages\nlohmann.json.3.10.2\build\native\nlohmann.json.targets" Condition="Exists('..\SMInjector\packages\nlohmann.json.3.10.2\build\native\nlohmann.json.targets')" />
   </ImportGroup>
-  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
-    <PropertyGroup>
-      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
-    </PropertyGroup>
-    <Error Condition="!Exists('..\SMInjector\packages\nlohmann.json.3.10.2\build\native\nlohmann.json.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\SMInjector\packages\nlohmann.json.3.10.2\build\native\nlohmann.json.targets'))" />
-  </Target>
 </Project>

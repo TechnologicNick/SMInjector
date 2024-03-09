@@ -32,6 +32,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AllowDevModeMismatch", "..\
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PacketLogger", "..\PluginDevFolder\PacketLogger\PacketLogger.vcxproj", "{46A25696-0D26-4948-9284-838C1216DEE1}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ConnectByIP", "..\PluginDevFolder\ConnectByIP\ConnectByIP.vcxproj", "{35F4FBB8-9022-492D-8465-775CD3DE07A0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -69,6 +71,10 @@ Global
 		{46A25696-0D26-4948-9284-838C1216DEE1}.Debug|x64.Build.0 = Debug|x64
 		{46A25696-0D26-4948-9284-838C1216DEE1}.Release|x64.ActiveCfg = Release|x64
 		{46A25696-0D26-4948-9284-838C1216DEE1}.Release|x64.Build.0 = Release|x64
+		{35F4FBB8-9022-492D-8465-775CD3DE07A0}.Debug|x64.ActiveCfg = Debug|x64
+		{35F4FBB8-9022-492D-8465-775CD3DE07A0}.Debug|x64.Build.0 = Debug|x64
+		{35F4FBB8-9022-492D-8465-775CD3DE07A0}.Release|x64.ActiveCfg = Release|x64
+		{35F4FBB8-9022-492D-8465-775CD3DE07A0}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -81,6 +87,7 @@ Global
 		{38DC34FA-3023-4313-AA91-13AFB0E3DD9D} = {4EC6A5BC-FCE4-4FFE-AC55-7D83B6B7C8D7}
 		{13A9BE96-3A7B-44C4-ADCD-C2615BBCFDB4} = {4EC6A5BC-FCE4-4FFE-AC55-7D83B6B7C8D7}
 		{46A25696-0D26-4948-9284-838C1216DEE1} = {4EC6A5BC-FCE4-4FFE-AC55-7D83B6B7C8D7}
+		{35F4FBB8-9022-492D-8465-775CD3DE07A0} = {4EC6A5BC-FCE4-4FFE-AC55-7D83B6B7C8D7}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {D7E2F6B1-96AC-4FB5-B8AA-FDB43C7F169E}
