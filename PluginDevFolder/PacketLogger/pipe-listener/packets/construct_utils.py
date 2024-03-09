@@ -122,3 +122,6 @@ class UuidAdapter(Adapter):
         return UUID(obj).int
 
 Uuid = UuidAdapter(BytesInteger(16, swapped=True))
+
+UuidBE = UuidAdapter(BytesInteger(16, swapped=False))
+"""The bytes are in the same order as the UUID string representation."""
