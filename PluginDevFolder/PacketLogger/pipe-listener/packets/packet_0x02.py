@@ -1,7 +1,7 @@
 import enum
 from packets.packet import Packet
 from packets.construct_utils import Uuid, UuidBE
-from construct import Bitwise, Enum, Flag, GreedyBytes, Int16ub, Int32ub, Padding, Prefixed, PrefixedArray, Struct
+from construct import Bitwise, Enum, Flag, GreedyBytes, Int16ub, Int32ub, Int64ub, Padding, Prefixed, PrefixedArray, Struct
 
 class GameMode(enum.IntEnum):
     AlphaTerrain = 0
@@ -18,11 +18,11 @@ class GameMode(enum.IntEnum):
     Development = 16
 
 UserGeneratedContent = Struct(
-    "file_id" / Int32ub,
+    "file_id" / Int64ub,
     "local_id" / Uuid,
 )
 
-GenericData = Struct(
+GenericDataKeys = Struct(
     "uuid" / UuidBE,
     "size" / Int16ub,
     "key" / Int32ub,
@@ -35,8 +35,8 @@ packet_0x02 = Struct(
     "gametick" / Int32ub,
     "user_generated_content" / PrefixedArray(Int32ub, UserGeneratedContent),
     "unknown_data" / Prefixed(Int16ub, GreedyBytes),
-    "script_data" / PrefixedArray(Int32ub, GenericData),
-    "generic_data" / PrefixedArray(Int32ub, GenericData),
+    "initialization_script_data_keys" / PrefixedArray(Int32ub, GenericDataKeys),
+    "initialization_generic_data_keys" / PrefixedArray(Int32ub, GenericDataKeys),
     "flags" / Bitwise(Struct(
         "developer_mode" / Flag,
         Padding(7),
@@ -51,8 +51,6 @@ class Packet_0x02(Packet):
 
     def parse_packet(self):
         self.struct = packet_0x02.parse(self.data)
-
-        print(self.data)
 
         return self.struct
     
