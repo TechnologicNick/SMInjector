@@ -115,7 +115,6 @@ class Base64Encoded(Tunnel):
 
 class UuidAdapter(Adapter):
     def _decode(self, obj, context, path):
-        print(obj)
         return str(UUID(int=obj))
 
     def _encode(self, obj, context, path):
