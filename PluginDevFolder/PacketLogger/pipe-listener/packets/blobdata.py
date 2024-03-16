@@ -1,8 +1,9 @@
 import enum
 from uuid import UUID
-from construct import Byte, GreedyBytes, Int16ub, Int32ub, Int32ul, PascalString, Prefixed, Select, Struct, Switch, this
+from construct import Byte, GreedyBytes, Int16ub, Int32ub, Int32ul, Int64ub, PascalString, Prefixed, Select, Struct, Switch, this
 from packets.construct_utils import CompressedLZ4Block, UuidBE
 from packets.lua_object import LuaObject
+from packets.packet_0x09 import CharacterCustomization
 
 
 class BlobDataUids(enum.Enum):
@@ -24,6 +25,17 @@ World = Struct(
 
 GameplayOptions = PascalString(Int16ub, "utf8")
 
+PlayerData = Struct(
+    "character_id" / Int32ub,
+    "steam_id_64" / Int64ub,
+    "inventory_container_id" / Int32ub,
+    "carry_container_id" / Int32ub,
+    "minus_one" / Int32ub,
+    "zero_or_one_or_two" / Byte,
+    "name" / PascalString(Byte, "utf8"),
+    "character_customization" / CharacterCustomization,
+)
+
 BlobData = Struct(
     "uid" / UuidBE,
     "key" / Prefixed(Int16ub, Select(
@@ -37,7 +49,7 @@ BlobData = Struct(
         Switch(this.uid, {
             str(BlobDataUids.GenericData_World.value): World,
             str(BlobDataUids.GenericData_GameplayOptions.value): GameplayOptions,
-            str(BlobDataUids.GenericData_PlayerData.value): GreedyBytes,
+            str(BlobDataUids.GenericData_PlayerData.value): PlayerData,
             str(BlobDataUids.ScriptData_Unknown.value): LuaObject,
             str(BlobDataUids.ScriptData_Game.value): LuaObject,
             str(BlobDataUids.ScriptData_Player.value): LuaObject,

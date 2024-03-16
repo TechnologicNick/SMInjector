@@ -18,14 +18,17 @@ class CustomizationOption(enum.IntEnum):
     Hat = 7
     Backpack = 8
 
-
-packet_0x09 = Struct(
-    "name" / PascalString(Int16ub, "utf8"),
+CharacterCustomization = Struct(
     "version" / Int32ub, # Not sure, always 2
     "gender" / Enum(Byte, Gender),
     "customization_options_length" / Byte,
     "customization_options_uuids" / Array(this.customization_options_length, UuidBE),
     "customization_options_palette_indeces" / Array(this.customization_options_length, Int32ub),
+)
+
+packet_0x09 = Struct(
+    "name" / PascalString(Int16ub, "utf8"),
+    "customization" / CharacterCustomization,
 )
 
 class Packet_0x09(Packet):
