@@ -1,7 +1,9 @@
 import enum
 from packets.packet import Packet
 from packets.construct_utils import Uuid, UuidBE
-from construct import Bitwise, Enum, Flag, GreedyBytes, Int16ub, Int32ub, Int64ub, Padding, Prefixed, PrefixedArray, Struct
+from packets.direction import Direction
+from packets.lua_object import LuaObject
+from construct import Bitwise, Enum, Flag, GreedyBytes, Int16ub, Int32ub, Int32ul, Int64ub, Padding, Prefixed, PrefixedArray, Select, Struct
 
 class GameMode(enum.IntEnum):
     AlphaTerrain = 0
@@ -23,9 +25,12 @@ UserGeneratedContent = Struct(
 )
 
 GenericDataKeys = Struct(
-    "uuid" / UuidBE,
-    "size" / Int16ub,
-    "key" / Int32ub,
+    "uid" / UuidBE,
+    "key" / Prefixed(Int16ub, Select(
+        LuaObject,
+        Int32ul,
+        GreedyBytes,
+    )),
 )
 
 packet_0x02 = Struct(
