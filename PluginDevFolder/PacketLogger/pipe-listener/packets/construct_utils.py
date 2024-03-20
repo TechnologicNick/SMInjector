@@ -1,6 +1,7 @@
 import base64
+import itertools
 from uuid import UUID
-from construct import Adapter, BytesInteger, GreedyBytes, StringError, Tunnel, unicodestringtype
+from construct import Adapter, BytesInteger, ExplicitError, GreedyBytes, ListContainer, SizeofError, StopFieldError, StringError, Subconstruct, Tunnel, stream_seek, stream_tell, unicodestringtype
 
 def class_to_dict(cls, exclude_keys=["_io"]):
     """Recursively converts class attributes to a dictionary."""
@@ -124,3 +125,73 @@ Uuid = UuidAdapter(BytesInteger(16, swapped=True))
 
 UuidBE = UuidAdapter(BytesInteger(16, swapped=False))
 """The bytes are in the same order as the UUID string representation."""
+
+class RepeatUntilEOF(Subconstruct):
+    r"""
+    Homogenous array of elements, similar to C# generic IEnumerable<T>, but works with unknown count of elements by parsing until end of stream.
+
+    Parses into a ListContainer (a list). Parsing stops when an exception occured when parsing the subcon, either due to EOF or subcon format not being able to parse the data. Either way, when RepeatUntilEOF encounters either failure, it raises the error. Builds from enumerable, each element as-is. Size is undefined.
+
+    This class supports stopping. If :class:`~construct.core.StopIf` field is a member, and it evaluates its lambda as positive, this class ends parsing or building as successful without processing further fields.
+
+    :param subcon: Construct instance, subcon to process individual elements
+    :param discard: optional, bool, if set then parsing returns empty list
+
+    :raises StreamError: requested reading negative amount, could not read enough bytes, requested writing different amount than actual data, or could not write all bytes
+    :raises StreamError: stream is not seekable and tellable
+
+    Can propagate any exception from the lambdas, possibly non-ConstructError.
+
+    Example::
+
+        >>> d = RepeatUntilEOF(Byte)
+        >>> d.build(range(8))
+        b'\x00\x01\x02\x03\x04\x05\x06\x07'
+        >>> d.parse(_)
+        [0, 1, 2, 3, 4, 5, 6, 7]
+    """
+
+    def __init__(self, subcon, discard=False):
+        super().__init__(subcon)
+        self.discard = discard
+
+    def _parse(self, stream, context, path):
+        discard = self.discard
+        obj = ListContainer()
+        try:
+            current = stream_tell(stream, path)
+            end = stream_seek(stream, 0, 2, path)
+            stream_seek(stream, current, 0, path)
+
+            for i in itertools.count():
+                if stream_tell(stream, path) == end:
+                    break
+
+                context._index = i
+                e = self.subcon._parsereport(stream, context, path)
+                if not discard:
+                    obj.append(e)
+        except StopFieldError:
+            pass
+        except ExplicitError:
+            raise
+        return obj
+
+    def _build(self, obj, stream, context, path):
+        discard = self.discard
+        try:
+            retlist = ListContainer()
+            for i,e in enumerate(obj):
+                context._index = i
+                buildret = self.subcon._build(e, stream, context, path)
+                if not discard:
+                    retlist.append(buildret)
+            return retlist
+        except StopFieldError:
+            pass
+
+    def _sizeof(self, context, path):
+        raise SizeofError(path=path)
+
+    def _emitfulltype(self, ksy, bitwise):
+        return dict(type=self.subcon._compileprimitivetype(ksy, bitwise), repeat="eos")
