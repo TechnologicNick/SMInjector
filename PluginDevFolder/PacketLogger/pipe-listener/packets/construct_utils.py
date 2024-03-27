@@ -1,7 +1,7 @@
 import base64
 import itertools
 from uuid import UUID
-from construct import Adapter, BytesInteger, ExplicitError, GreedyBytes, ListContainer, SizeofError, StopFieldError, StringError, Subconstruct, Tunnel, stream_seek, stream_tell, unicodestringtype
+from construct import Adapter, BytesInteger, Construct, ExplicitError, GreedyBytes, ListContainer, SizeofError, StopFieldError, StringError, Subconstruct, Tunnel, stream_seek, stream_tell, unicodestringtype
 
 def class_to_dict(cls, exclude_keys=["_io"]):
     """Recursively converts class attributes to a dictionary."""
@@ -195,3 +195,50 @@ class RepeatUntilEOF(Subconstruct):
 
     def _emitfulltype(self, ksy, bitwise):
         return dict(type=self.subcon._compileprimitivetype(ksy, bitwise), repeat="eos")
+    
+class PaddingUntilAligned(Construct):
+    r"""
+    Reads until the stream is aligned to a multiple of the given size. This is useful for reading padding bytes.
+
+    Parses into a bytes object. Parsing stops when the stream is aligned to multiple of the given size. Builds from bytes object. Size is undefined.
+
+    This class supports stopping. If :class:`~construct.core.StopIf` field is a member, and it evaluates its lambda as positive, this class ends parsing or building as successful without processing further fields.
+
+    :param alignment: int, size of alignment
+
+    :raises StreamError: requested reading negative amount, could not read enough bytes, requested writing different amount than actual data, or could not write all bytes
+    :raises StreamError: stream is not tellable
+
+    Can propagate any exception from the lambdas, possibly non-ConstructError.
+
+    Example::
+
+        >>> d = PaddingUntilAligned(4)
+        >>> d.build(b"")
+        b''
+        >>> d.parse(b"\x00\x00\x00")
+        b''
+        >>> d = Sequence(Byte, PaddingUntilAligned(4), Byte)
+        >>> d.build([1,b"",2])
+        b'\x01\x00\x00\x00\x02'
+        >>> d.parse(_)
+        [1, b'\x00\x00\x00', 2]
+    """
+
+    def __init__(self, alignment):
+        super().__init__()
+        self.alignment = alignment
+
+    def _parse(self, stream, context, path):
+        current = stream_tell(stream, path)
+        end = (current + self.alignment - 1) // self.alignment * self.alignment
+        return stream.read(end - current)
+    
+    def _build(self, obj, stream, context, path):
+        if obj is not None:
+            stream.write(obj)
+        current = stream_tell(stream, path)
+        end = (current + self.alignment - 1) // self.alignment * self.alignment
+        if end > current:
+            stream.write(b"\x00" * (end - current))
+        return obj

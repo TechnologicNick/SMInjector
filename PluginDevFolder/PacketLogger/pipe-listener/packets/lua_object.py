@@ -1,6 +1,6 @@
 from packets.lua_userdata import LuaUserdata
-from packets.construct_utils import Base64Encoded, CompressedLZ4Block
-from construct import Aligned, Array, Bitwise, Byte, Bytewise, Const, Enum, Flag, Float32b, GreedyBytes, Int16sb, Int32sb, Int32ub, Int8sb, LazyBound, Prefixed, Rebuild, Struct, Switch, len_, this
+from packets.construct_utils import Base64Encoded, CompressedLZ4Block, PaddingUntilAligned
+from construct import Aligned, Array, Bitwise, Byte, Bytes, Bytewise, Const, Enum, Flag, Float32b, FocusedSeq, GreedyBytes, Int16sb, Int32sb, Int32ub, Int8sb, LazyBound, Rebuild, Struct, Switch, len_, this
 import enum
 
 class LuaSaveDataType(enum.IntEnum):
@@ -22,13 +22,17 @@ LuaSaveData = Struct(
         "Nil": Const(b""),
         "Boolean": Flag,
         "Number": Bytewise(Float32b),
-        "String": Bytewise(Prefixed(Int32ub, GreedyBytes)),
+        "String": FocusedSeq("string_data",
+            "size" / Rebuild(Bytewise(Int32ub), len_(this.string_data)),
+            PaddingUntilAligned(8),
+            "string_data" / Bytewise(Bytes(this.size)),
+        ),
         "Table": Struct(
-            "count" / Rebuild(Bytewise(Int32ub), len_(this.value.items)),
+            "count" / Rebuild(Bytewise(Int32ub), len_(this.value.elements)),
             "is_array" / Flag,
             "value" / Switch(this.is_array, {
                 False: Struct(
-                    "items" / Array(this._.count,
+                    "elements" / Array(this._.count,
                         Struct(
                             "key" / LazyBound(lambda: LuaSaveData),
                             "value" / LazyBound(lambda: LuaSaveData),
@@ -37,7 +41,7 @@ LuaSaveData = Struct(
                 ),
                 True: Struct(
                     "offset" / Bytewise(Int32ub),
-                    "items" / Array(this._.count,
+                    "elements" / Array(this._.count,
                         LazyBound(lambda: LuaSaveData),
                     ),
                 ),
