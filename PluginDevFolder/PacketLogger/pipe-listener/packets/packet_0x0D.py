@@ -1,10 +1,11 @@
 from packets.packet import Packet
 from packets.blobdata import BlobData
-from construct import GreedyRange, Int32ub, Struct
+from packets.construct_utils import RepeatUntilEOF
+from construct import Int32ub, Struct
 
 packet_0x0D = Struct(
     "game_tick" / Int32ub,
-    "blob_data" / GreedyRange(BlobData),
+    "blob_data" / RepeatUntilEOF(BlobData),
 )
 
 class Packet_0x0D(Packet):

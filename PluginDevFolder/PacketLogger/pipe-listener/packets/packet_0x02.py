@@ -24,7 +24,7 @@ UserGeneratedContent = Struct(
     "local_id" / Uuid,
 )
 
-GenericDataKeys = Struct(
+BlobDataKeys = Struct(
     "uid" / UuidBE,
     "key" / Prefixed(Int16ub, Select(
         LuaObject,
@@ -40,8 +40,8 @@ packet_0x02 = Struct(
     "gametick" / Int32ub,
     "user_generated_content" / PrefixedArray(Int32ub, UserGeneratedContent),
     "unknown_data" / Prefixed(Int16ub, GreedyBytes),
-    "initialization_script_data_keys" / PrefixedArray(Int32ub, GenericDataKeys),
-    "initialization_generic_data_keys" / PrefixedArray(Int32ub, GenericDataKeys),
+    "initialization_script_data_keys" / PrefixedArray(Int32ub, BlobDataKeys),
+    "initialization_generic_data_keys" / PrefixedArray(Int32ub, BlobDataKeys),
     "flags" / Bitwise(Struct(
         "developer_mode" / Flag,
         Padding(7),

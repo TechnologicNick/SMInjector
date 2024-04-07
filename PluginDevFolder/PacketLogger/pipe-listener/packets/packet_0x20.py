@@ -104,7 +104,7 @@ class Packet_0x20(Packet):
         super().__init__(id, data, hidden)
 
     def parse_packet(self):
-        print("Decompressed:", hexdump(self.data))
+        # print("Decompressed:", hexdump(self.data))
 
         transaction_count = int.from_bytes(self.data[0:1], byteorder="big")
         transactions = []

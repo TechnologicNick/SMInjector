@@ -1,21 +1,20 @@
 from packets.packet import Packet
 from packets.blobdata import BlobData
 from packets.construct_utils import RepeatUntilEOF
-from construct import Int32ub, Struct
+from construct import Struct
 
-packet_0x0B = Struct(
-    "game_tick" / Int32ub,
+packet_0x1C = Struct(
     "blob_data" / RepeatUntilEOF(BlobData),
 )
 
-class Packet_0x0B(Packet):
-    """Script Initialization Data"""
+class Packet_0x1C(Packet):
+    """Generic Data (Client -> Server)"""
 
     def __init__(self, id: int, data: bytes, hidden=False):
         super().__init__(id, data, hidden)
 
     def parse_packet(self):
-        self.struct = packet_0x0B.parse(self.data)
+        self.struct = packet_0x1C.parse(self.data)
 
         return self.struct
     
@@ -23,5 +22,4 @@ class Packet_0x0B(Packet):
         pass
     
     def build_packet(self):
-        return self.data
-        # return packet_0x0A.build(self.struct)
+        return packet_0x1C.build(self.struct)
