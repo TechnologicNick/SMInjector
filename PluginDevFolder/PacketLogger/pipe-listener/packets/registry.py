@@ -12,6 +12,7 @@ from packets.packet_0x0B import Packet_0x0B
 from packets.packet_0x0D import Packet_0x0D
 from packets.packet_0x12 import Packet_0x12
 from packets.packet_0x13 import Packet_0x13
+from packets.packet_0x15 import Packet_0x15
 from packets.packet_0x16 import Packet_0x16
 from packets.packet_0x17 import Packet_0x17
 from packets.packet_0x18 import Packet_0x18
@@ -51,6 +52,7 @@ class PacketRegistry:
             0x0D: Packet_0x0D,
             0x12: Packet_0x12,
             0x13: Packet_0x13,
+            0x15: Packet_0x15,
             0x16: Packet_0x16,
             0x17: Packet_0x17,
             0x18: Packet_0x18,
