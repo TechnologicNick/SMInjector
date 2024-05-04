@@ -1,7 +1,7 @@
 from packets.packet import Packet
 from packets.hexdump import hexdump
 from packets.construct_utils import RepeatUntilEOF, Uuid
-from construct import Aligned, BitsInteger, Bitwise, Byte, Bytewise, Flag, GreedyBytes, Hex, If, Int16ub, Int32ub, Pass, Prefixed, Struct, Switch, this
+from construct import Aligned, BitsInteger, Bitwise, Byte, Bytewise, Flag, GreedyBytes, Hex, If, Int16ub, Int32ub, Pass, Peek, Prefixed, Probe, Struct, Switch, this
 
 CharacterNetworkUpdate = Struct(
     "update_movement_states" / Flag,
@@ -38,19 +38,25 @@ CharacterNetworkUpdate = Struct(
 
 packet_0x16 = Struct(
     "tick" / Int32ub,
-    "updates" / RepeatUntilEOF(Prefixed(Int16ub, Bitwise(Aligned(8, Struct(
-        "update_type" / BitsInteger(3),
-        "net_obj_type" / BitsInteger(5),
-        "net_obj_id" / Bytewise(Int32ub),
+    "updates" / RepeatUntilEOF(Struct(
+        "special_bit" / Peek(Flag),
+        "update_data" / Switch(this.special_bit, {
+            False: Prefixed(Int16ub, Bitwise(Aligned(8, Struct(
+                "update_type" / BitsInteger(3),
+                "net_obj_type" / BitsInteger(5),
+                "net_obj_id" / Bytewise(Int32ub),
 
-        "update" / Switch(this.update_type, {
-            3: Switch(this.net_obj_type, {
-                6: CharacterNetworkUpdate,
-            }, default=Pass),
-        }, default=Pass),
+                "update" / Switch(this.update_type, {
+                    3: Switch(this.net_obj_type, {
+                        6: CharacterNetworkUpdate,
+                    }, default=Pass),
+                }, default=Pass),
 
-        "data" / Bytewise(GreedyBytes),
-    ))), includelength=True)),
+                "data" / Bytewise(GreedyBytes),
+            ))), includelength=True),
+            True: GreedyBytes,
+        }),
+    )),
 )
 
 class Packet_0x16(Packet):
