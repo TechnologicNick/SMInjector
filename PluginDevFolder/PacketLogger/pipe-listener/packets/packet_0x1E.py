@@ -4,7 +4,8 @@ from packets.packet import Packet
 packet_0x1E = Struct(
     "tick" / Int32ub,
     "pressed_keys" / Bitwise(Struct(
-        Const(0, BitsInteger(4)),
+        Const(0, BitsInteger(3)),
+        "aim" / Flag,
         "sprint" / Flag,
         "horizontal" / Flag,
         "crawl" / Flag,
