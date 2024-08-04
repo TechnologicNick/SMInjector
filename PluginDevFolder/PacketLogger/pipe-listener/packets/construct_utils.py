@@ -164,7 +164,7 @@ class RepeatUntilEOF(Subconstruct):
             stream_seek(stream, current, 0, path)
 
             for i in itertools.count():
-                if stream_tell(stream, path) == end:
+                if stream_tell(stream, path) >= end:
                     break
 
                 context._index = i

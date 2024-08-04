@@ -17,5 +17,4 @@ class Packet_0x15(Packet):
         pass
     
     def build_packet(self):
-        return self.data
-        # return packet_0x15.build(self.struct)
+        return packet_0x15.build(self.struct)
