@@ -44,7 +44,14 @@ class CompressedLZ4Block(Tunnel):
         self.uncompressed_size = uncompressed_size
 
     def _decode(self, data, context, path):
-        return self.lib.decompress(data, uncompressed_size=self.uncompressed_size)
+        if callable(self.uncompressed_size):
+            uncompressed_size = self.uncompressed_size(context, path)
+        else:
+            uncompressed_size = self.uncompressed_size
+
+        print(uncompressed_size)
+
+        return self.lib.decompress(data, uncompressed_size=uncompressed_size)
 
     def _encode(self, data, context, path):
         return self.lib.compress(data, store_size=False)
