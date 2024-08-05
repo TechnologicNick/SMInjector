@@ -1,9 +1,170 @@
 import enum
 from packets.packet import Packet
-from packets.construct_utils import RepeatUntilEOF, Uuid
+from packets.construct_utils import RepeatUntilEOF, Uuid, UuidBE
 from packets.packet_0x18 import NetObjType
 from packets.hexdump import hexdump
-from construct import Aligned, BitsInteger, Bitwise, Byte, Bytes, Bytewise, Enum, Flag, FocusedSeq, GreedyBytes, Hex, If, Int16ub, Int32ub, Padding, Pass, Prefixed, Struct, Switch, Tunnel, this
+from construct import Adapter, Aligned, Array, BitsInteger, Bitwise, Byte, Bytes, Bytewise, Enum, Flag, Float32b, FocusedSeq, GreedyBytes, Hex, If, Int16sb, Int16ub, Int32sb, Int32ub, Int64ub, Padding, Pass, Prefixed, PrefixedArray, Select, Struct, Switch, Tunnel, this
+
+class AxisAdapter(Adapter):
+    def _decode(self, obj, context, path):
+        return obj - 4
+
+    def _encode(self, obj, context, path):
+        return obj + 4
+
+CreateRigidBody = Bytewise(Switch(this.controller_type, {
+    1: Struct(
+        "world_id" / Int16sb,
+        "rotation" / Struct(
+            "w" / Float32b,
+            "z" / Float32b,
+            "y" / Float32b,
+            "x" / Float32b,
+        ),
+        "position" / Struct(
+            "x" / Float32b,
+            "y" / Float32b,
+            "z" / Float32b,
+        ),
+    ),
+    2: Struct(
+        "world_id" / Int16sb,
+        "rotation" / Struct(
+            "x" / Float32b,
+            "y" / Float32b,
+            "z" / Float32b,
+            "w" / Float32b,
+        ),
+        "position" / Struct(
+            "x" / Float32b,
+            "y" / Float32b,
+            "z" / Float32b,
+        ),
+        "velocity" / Struct(
+            "x" / Float32b,
+            "y" / Float32b,
+            "z" / Float32b,
+        ),
+        "angular_velocity" / Struct(
+            "x" / Float32b,
+            "y" / Float32b,
+            "z" / Float32b,
+        ),
+    ),
+}, default=Pass))
+
+CreateContainer = Bytewise(Struct(
+    "size" / Int16ub,
+    "stack_size" / Int16ub,
+    "items" / Array(this.size, Struct(
+        "uuid" / Uuid,
+        "instance_id" / Int32ub,
+        "quantity" / Int16ub,
+    )),
+    "filter" / PrefixedArray(Int16ub, UuidBE),
+))
+
+CreateCharacter = Bytewise(Struct(
+    "steam_id_64" / Int64ub,
+    "position" / Struct(
+        "z" / Float32b,
+        "y" / Float32b,
+        "x" / Float32b,
+    ),
+    "world_id" / Int16sb,
+    "yaw" / Float32b,
+    "pitch" / Float32b,
+    "character_uuid" / Uuid,
+))
+
+CreateLift = Bytewise(Struct(
+    "steam_id_64" / Int64ub,
+    "world_id" / Int16sb,
+    "pos" / Struct(
+        "x" / Int32sb,
+        "y" / Int32sb,
+        "z" / Int32sb,
+    ),
+    "level" / Int32sb,
+))
+
+CreateTool = Bytewise(Struct(
+    "uuid" / Uuid,
+))
+
+UpdateRigidBody = Select(
+    # 1 - Static
+    Bytewise(Struct(
+        "unknown" / Byte,
+        "unknown2" / Int32sb,
+    )),
+    # 2 - Dynamic
+    Bytewise(Struct(
+        "unknown" / Byte,
+        "revision" / Byte,
+    )),
+)
+
+UpdateChildShape = Bytewise(Struct(
+    "uuid" / Int16ub,
+    "parent_body_id" / Int32ub,
+    "pos" / Struct(
+        "x" / Int16sb,
+        "y" / Int16sb,
+        "z" / Int16sb,
+    ),
+    "color" / Struct(
+        "a" / Hex(Byte),
+        "b" / Hex(Byte),
+        "g" / Hex(Byte),
+        "r" / Hex(Byte),
+    ),
+    "data" / Select(
+        # Blocks
+        Struct(
+            "bounds" / Struct(
+                "x" / Int16sb,
+                "y" / Int16sb,
+                "z" / Int16sb,
+            ),
+        ),
+        # Parts
+        Struct(
+            "axis" / Bitwise(Struct(
+                "z_axis" / AxisAdapter(BitsInteger(4)),
+                "x_axis" / AxisAdapter(BitsInteger(4)),
+            )),
+        ),
+    ),
+))
+
+UpdateJoint = Bytewise(Struct(
+    "uuid" / Int16ub,
+    "id_shape_a" / Int32sb,
+    "id_shape_b" / Int32sb,
+    "pos_a" / Struct(
+        "x" / Int32sb,
+        "y" / Int32sb,
+        "z" / Int32sb,
+    ),
+    "pos_b" / Struct(
+        "x" / Int32sb,
+        "y" / Int32sb,
+        "z" / Int32sb,
+    ),
+    "axis" / Bitwise(Struct(
+        "z_axis_b" / AxisAdapter(BitsInteger(4)),
+        "z_axis_a" / AxisAdapter(BitsInteger(4)),
+        "x_axis_b" / AxisAdapter(BitsInteger(4)),
+        "x_axis_a" / AxisAdapter(BitsInteger(4)),
+    )),
+    "color" / Struct(
+        "a" / Hex(Byte),
+        "b" / Hex(Byte),
+        "g" / Hex(Byte),
+        "r" / Hex(Byte),
+    ),
+))
 
 UpdateCharacter = Struct(
     "update_movement_states" / Flag,
@@ -38,6 +199,14 @@ UpdateCharacter = Struct(
     )),
 )
 
+UpdateLift = Bytewise(Struct(
+    "level" / Int32ub,
+))
+
+UpdateTool = Bytewise(Struct(
+    "owner_player_id" / Int32ub,
+))
+
 class UpdateType(enum.IntEnum):
     Create = 1
     P = 2 # Sent when the body of a joint is updated. Only possible for joints.
@@ -52,25 +221,27 @@ NetworkUpdate = Prefixed(Int16ub, Bitwise(Aligned(8, Struct(
 
     "data" / Switch(this.update_type, {
         UpdateType.Create.name: Switch(this.net_obj_type, {
-            NetObjType.Lift.name: Struct(
-                "height" / Bytewise(Int32ub),
-            ),
-            NetObjType.Tool.name: Struct(
-                "uuid" / Bytewise(Uuid),
-            ),
+            NetObjType.RigidBody.name: CreateRigidBody,
+            NetObjType.Container.name: CreateContainer,
+            NetObjType.Character.name: CreateCharacter,
+            NetObjType.Lift.name: CreateLift,
+            NetObjType.Tool.name: CreateTool,
         }, default=Pass),
 
         UpdateType.P.name: Bytes(0), # The game doesn't read anything for this update type
 
         UpdateType.Update.name: Switch(this.net_obj_type, {
+            NetObjType.RigidBody.name: UpdateRigidBody,
+            NetObjType.ChildShape.name: UpdateChildShape,
+            NetObjType.Joint.name: UpdateJoint,
             NetObjType.Character.name: UpdateCharacter,
-            NetObjType.Lift.name: Struct(
-                "height" / Bytewise(Int32ub),
-            )
+            NetObjType.Lift.name: UpdateLift,
+            NetObjType.Tool.name: UpdateTool,
         }, default=Pass),
 
         UpdateType.Remove.name: Switch(this.net_obj_type, {
-            NetObjType.Lift.name: Pass,
+            NetObjType.ChildShape.name: Struct(),
+            NetObjType.Lift.name: Struct(),
         }, default=Pass),
     }, default=Pass),
 
