@@ -1,9 +1,9 @@
 import enum
 from packets.packet import Packet
-from packets.construct_utils import RepeatUntilEOF, Uuid, UuidBE
+from packets.construct_utils import PaddingUntilAligned, RepeatUntilEOF, Uuid, UuidBE
 from packets.packet_0x18 import NetObjType
 from packets.hexdump import hexdump
-from construct import Adapter, Aligned, Array, BitsInteger, Bitwise, Byte, Bytes, Bytewise, Enum, Flag, Float32b, FocusedSeq, GreedyBytes, Hex, If, Int16sb, Int16ub, Int32sb, Int32ub, Int64ub, Padding, Pass, Prefixed, PrefixedArray, Select, Struct, Switch, Tunnel, this
+from construct import Adapter, Aligned, Array, BitsInteger, Bitwise, Byte, Bytes, Bytewise, Enum, Flag, Float32b, FocusedSeq, GreedyBytes, Hex, If, Int16sb, Int16ub, Int32sb, Int32ub, Int64ub, Padding, Pass, Prefixed, PrefixedArray, Rebuild, Select, Struct, Switch, Tunnel, len_, this
 
 class AxisAdapter(Adapter):
     def _decode(self, obj, context, path):
@@ -166,6 +166,21 @@ UpdateJoint = Bytewise(Struct(
     ),
 ))
 
+UpdateContainer = Struct(
+    "slot_changes" / Bytewise(PrefixedArray(Int16ub, Struct(
+        "uuid" / Uuid,
+        "instance_id" / Int32ub,
+        "quantity" / Int16ub,
+        "slot" / Int16ub,
+    ))),
+    "has_filters" / Flag,
+    "filters" / If(this.has_filters, FocusedSeq("filters",
+        "filter_count" / Bytewise(Rebuild(Int16ub, len_(this.filters))),
+        PaddingUntilAligned(8),
+        "filters" / Bytewise(Array(this.filter_count, UuidBE)),
+    )),
+)
+
 UpdateCharacter = Struct(
     "update_movement_states" / Flag,
     "update_color" / Flag,
@@ -234,13 +249,18 @@ NetworkUpdate = Prefixed(Int16ub, Bitwise(Aligned(8, Struct(
             NetObjType.RigidBody.name: UpdateRigidBody,
             NetObjType.ChildShape.name: UpdateChildShape,
             NetObjType.Joint.name: UpdateJoint,
+            NetObjType.Container.name: UpdateContainer,
             NetObjType.Character.name: UpdateCharacter,
             NetObjType.Lift.name: UpdateLift,
             NetObjType.Tool.name: UpdateTool,
         }, default=Pass),
 
         UpdateType.Remove.name: Switch(this.net_obj_type, {
+            NetObjType.RigidBody.name: Struct(),
             NetObjType.ChildShape.name: Struct(),
+            NetObjType.Joint.name: Struct(),
+            NetObjType.Container.name: Struct(),
+            NetObjType.Character.name: Struct(),
             NetObjType.Lift.name: Struct(),
         }, default=Pass),
     }, default=Pass),
@@ -309,7 +329,7 @@ class CompressedUpdate(Tunnel):
 
                 if self.print_data:
                     # Print the differences between the previous uncompressed data and the reconstructed data
-                    accumulator = hexdump(prev_uncompressed_data[:2]) + " "
+                    accumulator = ""
                     for i in range(len(reconstructed)):
                         if reconstructed[i] != prev_uncompressed_data[i]:
                             accumulator += f"\033[91m{reconstructed[i]:02x}\033[0m "
