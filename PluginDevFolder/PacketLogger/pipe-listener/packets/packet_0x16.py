@@ -3,7 +3,7 @@ from packets.packet import Packet
 from packets.construct_utils import PaddingUntilAligned, RepeatUntilEOF, Uuid, UuidBE
 from packets.packet_0x18 import NetObjType
 from packets.hexdump import hexdump
-from construct import Adapter, Aligned, Array, BitsInteger, Bitwise, Byte, Bytes, Bytewise, Enum, Flag, Float32b, FocusedSeq, GreedyBytes, Hex, If, Int16sb, Int16ub, Int32sb, Int32ub, Int64ub, Padding, Pass, Prefixed, PrefixedArray, Rebuild, Select, Struct, Switch, Tunnel, len_, this
+from construct import Adapter, Aligned, Array, BitsInteger, Bitwise, Byte, Bytes, Bytewise, Computed, Enum, Flag, Float16b, Float32b, FocusedSeq, GreedyBytes, Hex, If, Int16sb, Int16ub, Int32sb, Int32ub, Int64ub, Optional, Padding, Pass, Prefixed, PrefixedArray, Probe, Rebuild, RestreamData, Select, Struct, Switch, Tunnel, len_, this
 
 class AxisAdapter(Adapter):
     def _decode(self, obj, context, path):
@@ -53,6 +53,25 @@ CreateRigidBody = Bytewise(Switch(this.controller_type, {
     ),
 }, default=Pass))
 
+class ChildShapeControllerType(enum.IntEnum):
+    Block = 31
+    Part = 32
+
+CreateChildShape = Struct(
+    "shape_type" / Enum(Computed(this._.controller_type), ChildShapeControllerType),
+)
+
+class JointControllerType(enum.IntEnum):
+    Bearing = 2
+    Spring = 3
+    SurvivalSpring = 4
+    Piston = 28 # Also SurvivalPiston
+    GenericRotational = 41
+
+CreateJoint = Struct(
+    "joint_type" / Enum(Computed(this._.controller_type), JointControllerType),
+)
+
 CreateContainer = Bytewise(Struct(
     "size" / Int16ub,
     "stack_size" / Int16ub,
@@ -62,6 +81,24 @@ CreateContainer = Bytewise(Struct(
         "quantity" / Int16ub,
     )),
     "filter" / PrefixedArray(Int16ub, UuidBE),
+))
+
+CreateHarvestable = Bytewise(Struct(
+    "world_id" / Int16sb,
+    "uuid" / Int16ub,
+    "initial_position" / Struct(
+        "x" / Float32b,
+        "y" / Float32b,
+        "z" / Float32b,
+    ),
+    "initial_rotation" / Struct(
+        "w" / Float32b,
+        "z" / Float32b,
+        "y" / Float32b,
+        "x" / Float32b,
+    ),
+    "idk1" / Float16b,
+    "idk2" / Float16b,
 ))
 
 CreateCharacter = Bytewise(Struct(
@@ -181,6 +218,17 @@ UpdateContainer = Struct(
     )),
 )
 
+UpdateHarvestable = Bytewise(Struct(
+    "color" / Struct(
+        "r" / Hex(Byte),
+        "g" / Hex(Byte),
+        "b" / Hex(Byte),
+        "a" / Hex(Byte),
+    ),
+    "seated_character_id" / Optional(Int32ub), # Only present if the harvestable has a kinematic seat component
+))
+
+
 UpdateCharacter = Struct(
     "update_movement_states" / Flag,
     "update_color" / Flag,
@@ -237,7 +285,10 @@ NetworkUpdate = Prefixed(Int16ub, Bitwise(Aligned(8, Struct(
     "data" / Switch(this.update_type, {
         UpdateType.Create.name: Switch(this.net_obj_type, {
             NetObjType.RigidBody.name: CreateRigidBody,
+            NetObjType.ChildShape.name: CreateChildShape,
+            NetObjType.Joint.name: CreateJoint,
             NetObjType.Container.name: CreateContainer,
+            NetObjType.Harvestable.name: CreateHarvestable,
             NetObjType.Character.name: CreateCharacter,
             NetObjType.Lift.name: CreateLift,
             NetObjType.Tool.name: CreateTool,
@@ -250,6 +301,7 @@ NetworkUpdate = Prefixed(Int16ub, Bitwise(Aligned(8, Struct(
             NetObjType.ChildShape.name: UpdateChildShape,
             NetObjType.Joint.name: UpdateJoint,
             NetObjType.Container.name: UpdateContainer,
+            NetObjType.Harvestable.name: UpdateHarvestable,
             NetObjType.Character.name: UpdateCharacter,
             NetObjType.Lift.name: UpdateLift,
             NetObjType.Tool.name: UpdateTool,
@@ -260,6 +312,7 @@ NetworkUpdate = Prefixed(Int16ub, Bitwise(Aligned(8, Struct(
             NetObjType.ChildShape.name: Struct(),
             NetObjType.Joint.name: Struct(),
             NetObjType.Container.name: Struct(),
+            NetObjType.Harvestable.name: Struct(),
             NetObjType.Character.name: Struct(),
             NetObjType.Lift.name: Struct(),
         }, default=Pass),
