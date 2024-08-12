@@ -22,5 +22,8 @@
     <ClInclude Include="src\steam.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\ConnectByIP_Pipes.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

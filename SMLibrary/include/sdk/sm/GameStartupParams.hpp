@@ -16,7 +16,7 @@ namespace SM {
         undefined field6_0x6;
         undefined field7_0x7;
     public:
-        uint64_t m_uConnectSteamId;
+        uint64_t m_ullConnectSteamId;
         std::string m_sPassphraseUuid;
         GameInfo m_gameInfo;
     };

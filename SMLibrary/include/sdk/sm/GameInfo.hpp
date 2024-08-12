@@ -13,17 +13,8 @@ namespace SM {
         undefined field4_0xd;
         undefined field5_0xe;
         undefined field6_0xf;
-        undefined4* field7_0x10;
-        undefined4* field8_0x18;
-        undefined field9_0x20;
-        undefined field10_0x21;
-        undefined field11_0x22;
-        undefined field12_0x23;
-        undefined field13_0x24;
-        undefined field14_0x25;
-        undefined field15_0x26;
-        undefined field16_0x27;
     public:
+        std::vector<void*> m_vecUsedUgcIdPairs;
         std::string m_sGameScriptStorage;
         std::vector<void*> m_initializationScriptDataKeys;
         std::vector<void*> m_initializationGenericDataKeys;

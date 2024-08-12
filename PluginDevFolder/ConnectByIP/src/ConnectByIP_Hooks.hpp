@@ -2,6 +2,7 @@
 
 #include <Windows.h>
 #include <type_traits>
+#include <iostream>
 #include <gamehook.h>
 
 #include "steam.h"
@@ -14,20 +15,29 @@ constexpr uint64_t offset_SteamNetworkClient_ConnectP2P = 0x448910;
 
 namespace ConnectByIP::Hooks {
 
+    SteamNetworkingIPAddr addr = { 0 };
+    bool useIP = false;
+
     GameHook* gh_SteamNetworkClient_ConnectP2P;
+    GameHook* gh_SteamAPI_RunCallbacks;
 
     using f_SteamNetworkingClient_ConnectP2P = std::add_pointer< void(void*, uint64_t*, std::string*) >::type;
     using f_ISteamNetworkingSockets_ConnectP2P = std::add_pointer< HSteamNetConnection(ISteamNetworkingSockets*, const SteamNetworkingIdentity&, int, int, const SteamNetworkingConfigValue_t*) >::type;
+    using f_SteamAPI_RunCallbacks = std::add_pointer< void() >::type;
 
     f_ISteamNetworkingSockets_ConnectP2P o_ISteamNetworkingSockets_ConnectP2P = nullptr;
 
     HSteamNetConnection Hook_ISteamNetworkingSockets_ConnectP2P(ISteamNetworkingSockets* self, const SteamNetworkingIdentity& identityRemote, int nRemoteVirtualPort, int nOptions, const SteamNetworkingConfigValue_t* pOptions) {
         Console::log(Color::LightPurple, "Hook_ISteamNetworkingSockets_ConnectP2P, self = %p, identityRemote = %llu, nRemoteVirtualPort = %d, nOptions = %d", self, identityRemote.GetSteamID64(), nRemoteVirtualPort, nOptions);
         
-        SteamNetworkingIPAddr addr = { 0 };
-        addr.SetIPv6LocalHost(38799);
+        if (ConnectByIP::Hooks::useIP) {
+			ConnectByIP::Hooks::useIP = false;
+            char ip[256];
+            addr.ToString(ip, sizeof(ip), true);
 
-        self->ConnectByIPAddress(addr, nOptions, pOptions);
+			Console::log(Color::LightPurple, "Connectign to IP address: %s", ip);
+			return self->ConnectByIPAddress(ConnectByIP::Hooks::addr, nOptions, pOptions);
+		}
 
         return o_ISteamNetworkingSockets_ConnectP2P(self, identityRemote, nRemoteVirtualPort, nOptions, pOptions);
     }
@@ -49,6 +59,63 @@ namespace ConnectByIP::Hooks {
         ((f_SteamNetworkingClient_ConnectP2P)*gh_SteamNetworkClient_ConnectP2P)(self, pulHostUserId, sPassphrase);
     }
 
+    bool ParseConnectionString(const std::string& connectionString, SteamNetworkingIPAddr& addr) {
+        const size_t pos = connectionString.find("://");
+		std::string protocol = connectionString.substr(0, pos);
+        if (protocol != "ip") {
+            Console::log(Color::Red, "Invalid protocol: '%s'. Only 'ip' is supported.", protocol.c_str());
+            return false;
+        }
+
+        const std::string ip = connectionString.substr(pos + 3);
+
+		addr.Clear();
+        if (!addr.ParseString(ip.c_str())) {
+            Console::log(Color::Red, "Failed to parse IP address: '%s'", ip.c_str());
+        }
+
+        if (addr.m_port == 0) {
+			addr.m_port = 38799;
+		}
+
+		return true;
+	}
+
+    void TransitionToPlayState() {
+        if ((*SM::g_contraption)->m_uGameStateIndex != SM::GameState_MenuState) {
+            Console::log(Color::LightPurple, "Not in main menu, ignoring join request");
+            return;
+        }
+
+        Console::log(Color::LightPurple, "Transitioning to play state...");
+
+        (*SM::g_contraption)->m_pGameStartupParams.m_ullConnectSteamId = -1; // Anything other than 0 to prevent the game from crashing
+
+        void* playState = &((*SM::g_contraption)->m_pGameStates[(*SM::g_contraption)->m_uGameStateIndex]);
+
+        constexpr uint64_t offset_m_uTargetGameState = 0x118;
+        uint64_t p_m_uTargetGameState = *(uint64_t*)playState + offset_m_uTargetGameState;
+
+        *(int*)p_m_uTargetGameState = SM::GameState_PlayState;
+    }
+
+    void Hook_SteamAPI_RunCallbacks() {
+		((f_SteamAPI_RunCallbacks)*gh_SteamAPI_RunCallbacks)();
+
+        if (ConnectByIP::Pipes::hPipe == INVALID_HANDLE_VALUE) {
+            ConnectByIP::Pipes::InitPipe();
+		}
+
+        std::string connectionString;
+        if (ConnectByIP::Pipes::ReadConnectionString(connectionString)) {
+			Console::log(Color::LightPurple, "Received message from pipe: %s", connectionString.c_str());
+			if (ParseConnectionString(connectionString, addr)) {
+                ConnectByIP::Hooks::useIP = true;
+				TransitionToPlayState();
+			}
+		}
+	}
+
     bool InstallHooks() {
         Console::log(Color::Aqua, "Installing hooks...");
 
@@ -59,6 +126,12 @@ namespace ConnectByIP::Hooks {
         
         if (!gh_SteamNetworkClient_ConnectP2P) {
 			Console::log(Color::Red, "Failed to install hook for 'SteamNetworkClient::ConnectP2P'");
+			return false;
+		}
+
+        gh_SteamAPI_RunCallbacks = GameHooks::InjectFromName("steam_api64.dll", "SteamAPI_RunCallbacks", Hook_SteamAPI_RunCallbacks, 6);
+        if (!gh_SteamAPI_RunCallbacks) {
+			Console::log(Color::Red, "Failed to install hook for 'SteamAPI_RunCallbacks'");
 			return false;
 		}
 
