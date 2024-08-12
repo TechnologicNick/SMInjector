@@ -3,7 +3,7 @@ from packets.packet import Packet
 from packets.construct_utils import Uuid, UuidBE
 from packets.direction import Direction
 from packets.lua_object import LuaObject
-from construct import Bitwise, Enum, Flag, GreedyBytes, Int16ub, Int32ub, Int32ul, Int64ub, Padding, Prefixed, PrefixedArray, Select, Struct
+from construct import Bitwise, Enum, Flag, GreedyBytes, Int16ub, Int32ub, Int32ul, Int64ub, Padding, PascalString, Prefixed, PrefixedArray, Select, Struct
 
 class GameMode(enum.IntEnum):
     AlphaTerrain = 0
@@ -39,7 +39,7 @@ packet_0x02 = Struct(
     "seed" / Int32ub,
     "gametick" / Int32ub,
     "user_generated_content" / PrefixedArray(Int32ub, UserGeneratedContent),
-    "unknown_data" / Prefixed(Int16ub, GreedyBytes),
+    "game_data" / PascalString(Int16ub, "utf8"),
     "initialization_script_data_keys" / PrefixedArray(Int32ub, BlobDataKeys),
     "initialization_generic_data_keys" / PrefixedArray(Int32ub, BlobDataKeys),
     "flags" / Bitwise(Struct(
