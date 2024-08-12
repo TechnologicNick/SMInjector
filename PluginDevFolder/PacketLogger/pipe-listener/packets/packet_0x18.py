@@ -2,6 +2,7 @@ import enum
 from random import randint
 from packets.hexdump import hexdump
 from packets.packet import Packet
+from packets.construct_utils import RepeatUntilEOF
 from construct import Aligned, BitsInteger, Bitwise, Byte, Bytewise, Const, Enum, Flag, Float32b, GreedyBytes, GreedyRange, HexDump, Prefixed, Struct, Int32ub, Switch, this
 
 character = Bitwise(Aligned(8, Struct(
@@ -59,6 +60,34 @@ controller = Struct(
     "..." / HexDump(GreedyBytes),
 )
 
+rigid_body = Bitwise(Struct(
+    "id" / Bytewise(Int32ub),
+    "rotation" / Struct(
+        "x" / Bytewise(Float32b),
+        "y" / Bytewise(Float32b),
+        "z" / Bytewise(Float32b),
+        "w" / Bytewise(Float32b),
+    ),
+    "position" / Struct(
+        "x" / Bytewise(Float32b),
+        "y" / Bytewise(Float32b),
+        "z" / Bytewise(Float32b),
+    ),
+    "velocity" / Struct(
+        "x" / Bytewise(Float32b),
+        "y" / Bytewise(Float32b),
+        "z" / Bytewise(Float32b),
+    ),
+    "angular_velocity" / Struct(
+        "x" / Bytewise(Float32b),
+        "y" / Bytewise(Float32b),
+        "z" / Bytewise(Float32b),
+    ),
+    "is_awake" / Flag,
+    "revision" / BitsInteger(7),
+    "..." / HexDump(GreedyBytes),
+))
+
 class NetObjType(enum.IntEnum):
     RigidBody = 0
     ChildShape = 1          # Not implemented
@@ -79,15 +108,16 @@ class NetObjType(enum.IntEnum):
 update = Struct(
     "type" / Enum(Byte, NetObjType),
     "data" / Switch(this.type, {
-        "Controller": controller,
-        "Character": character,
+        NetObjType.RigidBody.name: rigid_body,
+        NetObjType.Controller.name: controller,
+        NetObjType.Character.name: character,
     }, default=HexDump(GreedyBytes)),
 )
 
 packet_0x18 = Struct(
     "server_tick" / Int32ub,
     "current_tick" / Int32ub,
-    "bitshit" / GreedyRange(Prefixed(Byte, update, includelength=True)),
+    "bitshit" / RepeatUntilEOF(Prefixed(Byte, update, includelength=True)),
     "trailing" / HexDump(GreedyBytes),
 )
 
