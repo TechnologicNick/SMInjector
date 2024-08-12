@@ -15,6 +15,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\ConnectByIP_Hooks.hpp" />
+    <ClInclude Include="src\ConnectByIP_Pipes.hpp" />
     <ClInclude Include="src\steam.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

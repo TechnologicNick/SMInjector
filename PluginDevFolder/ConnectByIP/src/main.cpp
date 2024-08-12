@@ -5,6 +5,7 @@
 #include <console.h>
 using Console::Color;
 
+#include "ConnectByIP_Pipes.hpp"
 #include "ConnectByIP_Hooks.hpp"
 
 LIB_RESULT PluginLoad() {
