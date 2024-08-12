@@ -49,7 +49,7 @@ class CompressedLZ4Block(Tunnel):
         else:
             uncompressed_size = self.uncompressed_size
 
-        print(uncompressed_size)
+        # print(uncompressed_size)
 
         return self.lib.decompress(data, uncompressed_size=uncompressed_size)
 
