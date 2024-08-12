@@ -1,6 +1,6 @@
 import enum
 from uuid import UUID
-from construct import Byte, GreedyBytes, Hex, Int16ub, Int32ub, Int32ul, Int64ub, PascalString, Prefixed, Select, Struct, Switch, this
+from construct import Byte, Float32b, GreedyBytes, Hex, Int16ub, Int32ub, Int32ul, Int64ub, PascalString, Prefixed, Select, Struct, Switch, this
 from packets.construct_utils import CompressedLZ4Block, UuidBE
 from packets.lua_object import LuaObject
 from packets.packet_0x09 import CharacterCustomization
@@ -10,6 +10,7 @@ class BlobDataUids(enum.Enum):
     GenericData_World = UUID("3ff36c8b-93f7-4428-ae4d-429a6f0cf77d")
     GenericData_GameplayOptions = UUID("44ac020c-aec7-4f8b-b230-34d2e3bd23eb")
     GenericData_PlayerData = UUID("51868883-d2d2-4953-9135-1ab0bdc2a47e")
+    GenericData_PlayerSaveFileData = UUID("67ce7fe2-f756-4898-b8f0-76080146a358")
     GenericData_ChatMessage = UUID("46968863-090a-46b8-ad99-1159b53450fe")
     GenericData_CharacterAnimation = UUID("a5a3262e-ca46-4e2a-9b98-47c52218e609")
 
@@ -43,6 +44,32 @@ PlayerData = Struct(
     "character_customization" / CharacterCustomization,
 )
 
+PlayerSaveFileData = Struct(
+    "world_id" / Int16ub,
+    "character_position" / Struct( # Order not confirmed
+        "z" / Float32b,
+        "y" / Float32b,
+        "x" / Float32b,
+    ),
+    "character_velocity" / Struct( # Order not confirmed
+        "z" / Float32b,
+        "y" / Float32b,
+        "x" / Float32b,
+    ),
+    "character_yaw" / Float32b,
+    "character_pitch" / Float32b,
+    "steam_id_64" / Int64ub,
+    "inventory_container_id" / Int32ub,
+    "carry_container_id" / Int32ub,
+    "carry_container_color" / Struct( # Order not confirmed
+        "a" / Byte,
+        "b" / Byte,
+        "g" / Byte,
+        "r" / Byte,
+    ),
+)
+
+
 ChatMessage = Struct(
     "timestamp" / Int64ub,
     "sender" / PascalString(Int16ub, "utf8"),
@@ -63,6 +90,7 @@ BlobData = Struct(
             str(BlobDataUids.GenericData_World.value): World,
             str(BlobDataUids.GenericData_GameplayOptions.value): GameplayOptions,
             str(BlobDataUids.GenericData_PlayerData.value): PlayerData,
+            str(BlobDataUids.GenericData_PlayerSaveFileData.value): PlayerSaveFileData,
             str(BlobDataUids.GenericData_ChatMessage.value): ChatMessage,
             str(BlobDataUids.GenericData_CharacterAnimation.value): GreedyBytes,
             str(BlobDataUids.ScriptData_TerrainData.value): LuaObject,
