@@ -22,5 +22,4 @@ class Packet_0x13(Packet):
     
     def build_packet(self):
         rebuilt = packet_0x13.build(self.struct)
-        print(rebuilt)
         return rebuilt

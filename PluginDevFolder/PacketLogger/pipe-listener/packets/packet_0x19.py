@@ -1,9 +1,9 @@
 from enum import Enum, IntEnum
 from uuid import UUID
 
-from packets.construct_utils import CompressedLZ4Block
+from packets.construct_utils import CompressedLZ4Block, RepeatUntilEOF
 from packets.packet import Packet
-from construct import Byte, BytesInteger, Enum as CEnum, GreedyBytes, GreedyRange, Hex, Prefixed, Struct, Int16ub, Int32ub, Int32ul, Switch, this
+from construct import Byte, BytesInteger, Enum as CEnum, GreedyBytes, Hex, Prefixed, Struct, Int16ub, Int32ub, Int32ul, Switch, this
 from packets.hexdump import hexdump
 from packets.lua_object import LuaObject
 
@@ -65,7 +65,7 @@ rpc = Struct(
 
 packet_0x19 = Struct(
     "tick" / Int32ub,
-    "rpcs" / GreedyRange(rpc),
+    "rpcs" / RepeatUntilEOF(rpc),
 )
 
 class Packet_0x19(Packet):
@@ -75,10 +75,10 @@ class Packet_0x19(Packet):
         super().__init__(id, data, hidden)
 
     def parse_packet(self):
-        print(self.data)
+        # print(self.data)
         self.struct = packet_0x19.parse(self.data)
 
-        print(self.struct)
+        # print(self.struct)
 
         return hexdump(self.data)
     

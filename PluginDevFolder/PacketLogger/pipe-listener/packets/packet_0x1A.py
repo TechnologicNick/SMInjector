@@ -1,11 +1,11 @@
-
 from packets.packet import Packet
-from construct import GreedyRange, Struct
+from construct import Struct
 from packets.hexdump import hexdump
+from packets.construct_utils import RepeatUntilEOF
 from packets.packet_0x19 import rpc
 
 packet_0x1A = Struct(
-    "rpcs" / GreedyRange(rpc),
+    "rpcs" / RepeatUntilEOF(rpc),
 )
 
 class Packet_0x1A(Packet):
@@ -15,10 +15,10 @@ class Packet_0x1A(Packet):
         super().__init__(id, data, hidden)
 
     def parse_packet(self):
-        print(self.data)
+        # print(self.data)
         self.struct = packet_0x1A.parse(self.data)
 
-        print(self.struct)
+        # print(self.struct)
 
         return hexdump(self.data)
     

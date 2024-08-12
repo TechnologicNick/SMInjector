@@ -4,7 +4,8 @@ from packets.packet import Packet
 packet_0x1E = Struct(
     "tick" / Int32ub,
     "pressed_keys" / Bitwise(Struct(
-        Const(0, BitsInteger(4)),
+        Const(0, BitsInteger(3)),
+        "aim" / Flag,
         "sprint" / Flag,
         "horizontal" / Flag,
         "crawl" / Flag,
@@ -18,7 +19,7 @@ packet_0x1E = Struct(
 class Packet_0x1E(Packet):
     """Player Movement"""
 
-    def __init__(self, id: int, data: bytes, hidden=False):
+    def __init__(self, id: int, data: bytes, hidden=True):
         super().__init__(id, data, hidden)
 
     def parse_packet(self):

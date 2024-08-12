@@ -26,7 +26,7 @@ class Packet_0x2C(Packet):
     def parse_packet(self):
         self.struct = packet_0x2C.parse(self.data)
 
-        print(hexdump(self.data))
+        # print(hexdump(self.data))
 
         return self.struct
     

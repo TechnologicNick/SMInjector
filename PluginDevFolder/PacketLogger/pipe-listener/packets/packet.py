@@ -17,3 +17,6 @@ class Packet:
     
     def build_packet(self) -> bytes | list[bytes]:
         return self.data
+    
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(id={self.id}, doc='{self.__class__.__doc__}')"
