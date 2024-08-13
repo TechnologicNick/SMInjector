@@ -1,4 +1,5 @@
 import time
+import traceback
 from construct import Byte, Enum, GreedyBytes, Hex, Int32ul, Int64ul, Prefixed, PrefixedArray, Struct
 import win32pipe, win32file, pywintypes
 from packets.hexdump import hexdump
@@ -57,7 +58,14 @@ def process_packet(handle: int, data: bytes):
 
     if action in [Action.SendReliablePacket, Action.SendUnreliablePacket, Action.ServerReceivePacket, Action.ClientReceivePacket]:
         packet = registry.get_packet(header.data[0], header.data[1:])
-        parsed_packet = packet.parse_packet()
+        try:
+            parsed_packet = packet.parse_packet()
+        except Exception as e:
+            print(f"\033[31mError parsing packet {packet}: {e}\033[0m")
+            print(f"\033[31mData: {hexdump(data)}\033[0m")
+            traceback.print_exception(type(e), e, e.__traceback__)
+            send_response(handle, [data])
+            return
         
         if not packet.hidden:
             dir = direction.name.ljust(8)
@@ -69,15 +77,30 @@ def process_packet(handle: int, data: bytes):
 
             print(f"{clear_screen}{dir} packet {id_hex} {packet} from {ret_addr}: (size={size}) {parsed_packet}")
         
-        packet.modify_packet(direction)
+        try:
+            packet.modify_packet(direction)
+        except Exception as e:
+            print(f"\033[31mError modifying packet {packet}: {e}\033[0m")
+            traceback.print_exception(type(e), e, e.__traceback__)
+            send_response(handle, [data])
+            return
 
-        built_packets = packet.build_packet()
+        try:
+            built_packets = packet.build_packet()
+        except Exception as e:
+            print(f"\033[31mError building packet {packet}: {e}\033[0m")
+            traceback.print_exception(type(e), e, e.__traceback__)
+            send_response(handle, [data])
+            return
+
         if not isinstance(built_packets, list):
             built_packets = [built_packets]
 
         for built_packet in built_packets:
             header.data = packet.id.to_bytes(1) + built_packet
             response_packets.append(PacketHeader.build(header))
+    # else:
+    #     print(f"[{direction.name.ljust(8)} {action.name}] \t {header.data}")
 
     if action in [Action.SendReliablePacket, Action.SendUnreliablePacket, Action.ServerReceivePacket, Action.ClientReceivePacket]:
         send_response(handle, response_packets)
