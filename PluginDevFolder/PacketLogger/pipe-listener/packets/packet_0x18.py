@@ -10,8 +10,9 @@ character = Bitwise(Aligned(8, Struct(
     "is_tumbling" / Flag,
     "data" / Switch(this.is_tumbling, {
         False: Struct(
-            Const(0, BitsInteger(4)),
+            Const(0, BitsInteger(3)),
             "keys" / Struct(
+                "aiming" / Flag,
                 "sprint" / Flag,
                 "horizontal" / Flag,
                 "crawl" / Flag,
