@@ -1,6 +1,6 @@
 import enum
 from uuid import UUID
-from construct import Byte, Float32b, GreedyBytes, Hex, Int16ub, Int32ub, Int32ul, Int64ub, PascalString, Prefixed, Select, Struct, Switch, this
+from construct import Byte, Computed, Float32b, GreedyBytes, Hex, Int16ub, Int32ub, Int32ul, Int64ub, PascalString, Prefixed, Select, Struct, Switch, this
 from packets.construct_utils import CompressedLZ4Block, UuidBE
 from packets.lua_object import LuaObject
 from packets.packet_0x09 import CharacterCustomization
@@ -13,11 +13,18 @@ class BlobDataUids(enum.Enum):
     GenericData_PlayerSaveFileData = UUID("67ce7fe2-f756-4898-b8f0-76080146a358")
     GenericData_ChatMessage = UUID("46968863-090a-46b8-ad99-1159b53450fe")
     GenericData_CharacterAnimation = UUID("a5a3262e-ca46-4e2a-9b98-47c52218e609")
+    GenericData_ClientDrawDistance = UUID("f9990b14-89f9-4c2f-910b-b88d3c5cc21b")
 
     ScriptData_TerrainData = UUID("61aa13d7-e715-4153-a269-4d338c0c5bd4")
     # These UUIDv5s are probably generated from the namespace and scriptTypeID enums
     ScriptData_Game = UUID("dddc241a-2077-5a5d-920c-ba416ee1520f")
     ScriptData_Player = UUID("6ea49f8f-4c5e-5993-bf03-e8e1e93ac034")
+
+def getBlobDataName(uid):
+    for member in BlobDataUids.__members__.values():
+        if str(member.value) == uid:
+            return member.name
+    return None
 
 World = Struct(
     "seed" / Int32ub,
@@ -69,15 +76,19 @@ PlayerSaveFileData = Struct(
     ),
 )
 
-
 ChatMessage = Struct(
     "timestamp" / Int64ub,
     "sender" / PascalString(Int16ub, "utf8"),
     "message" / PascalString(Int16ub, "utf8"),
 )
 
+ClientDrawDistance = Struct(
+    "draw_distance" / Int32ub, # 1 for Low, 2 for Medium, 3 for High, 4 for Very High
+)
+
 BlobData = Struct(
     "uid" / UuidBE,
+    "uid_pretty" / Computed(lambda ctx: getBlobDataName(ctx.uid)),
     "key" / Prefixed(Int16ub, Select(
         LuaObject,
         Int32ul,
@@ -93,6 +104,7 @@ BlobData = Struct(
             str(BlobDataUids.GenericData_PlayerSaveFileData.value): PlayerSaveFileData,
             str(BlobDataUids.GenericData_ChatMessage.value): ChatMessage,
             str(BlobDataUids.GenericData_CharacterAnimation.value): GreedyBytes,
+            str(BlobDataUids.GenericData_ClientDrawDistance.value): ClientDrawDistance,
             str(BlobDataUids.ScriptData_TerrainData.value): LuaObject,
             str(BlobDataUids.ScriptData_Game.value): LuaObject,
             str(BlobDataUids.ScriptData_Player.value): LuaObject,
