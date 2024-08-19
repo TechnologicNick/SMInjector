@@ -91,6 +91,11 @@ namespace ConnectByIP::Hooks {
 
         (*SM::g_contraption)->m_pGameStartupParams.m_ullConnectSteamId = -1; // Anything other than 0 to prevent the game from crashing
 
+        // If the following are not set, the `!sFile.empty() && !sClass.empty()` assertion fails
+        (*SM::g_contraption)->m_pGameStartupParams.m_bListenServer = false; // Required to fix `Invalid game mode`
+        (*SM::g_contraption)->m_pGameStartupParams.m_sPassphraseUuid.clear(); // If this is left out you get `Timed out attempting to connect (5003)` after 10 seconds for every other attempt to connect
+        (*SM::g_contraption)->m_pGameStartupParams.m_gameInfo.m_eGameMode = 0xFF;
+
         void* playState = &((*SM::g_contraption)->m_pGameStates[(*SM::g_contraption)->m_uGameStateIndex]);
 
         constexpr uint64_t offset_m_uTargetGameState = 0x118;
