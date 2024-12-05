@@ -15,7 +15,6 @@
 #include <console.h>
 using Console::Color;
 
-constexpr uint64_t offset_HandleNetworkMessages = 0x44B560;
 constexpr uint64_t offset_NetworkSendInterface_SendReliablePacket = 0x90c8b0;
 constexpr uint64_t offset_NetworkSendInterface_SendUnreliablePacket = 0x90d010;
 constexpr uint64_t offset_SteamNetworkServer_ReceivePacket = 0x8df070;
@@ -65,18 +64,6 @@ namespace PacketLogger::Hooks {
     int hook_Steam_SendMessageToConnection(ISteamNetworkingSockets* self, HSteamNetConnection hConn, const void* pData, uint32 cbData, int nSendFlags, int64* pOutMessageNumber) {
 		PacketLogger::Logger::LogOutboundPacket(hConn, pData, cbData, nSendFlags, pOutMessageNumber, _ReturnAddress());
         return o_Steam_SendMessageToConnection(self, hConn, pData, cbData, nSendFlags, pOutMessageNumber);
-    }
-
-    VolvoStructure** GetVolvoStructure() {
-        const PBYTE pBaseAddress = PBYTE(GetModuleHandle(NULL));
-        const fGetNetworkingSocketInterface pfnGetNetworkingSocketInterface = fGetNetworkingSocketInterface(pBaseAddress + offset_HandleNetworkMessages);
-
-        VolvoStructure** ptr = nullptr;
-        void* funcPtr = nullptr;
-
-        pfnGetNetworkingSocketInterface(&ptr);
-
-        return ptr;
     }
 
     void hook_SendReliablePacket(const void* self, const void* param_2, const char* data, uint32 size, const uint32 param_5, const uint8 param_6, int* pOutCompressedSize) {
@@ -197,7 +184,7 @@ namespace PacketLogger::Hooks {
     void InstallSteamHooks() {
         Console::log(Color::Aqua, "Installing Steam hooks...");
 
-        VolvoStructure** ptr = GetVolvoStructure();
+        VolvoStructure** ptr = (VolvoStructure**)SteamNetworkingSockets();
         o_Steam_ReceiveMessagesOnConnection = (fReceiveMessagesOnConnection)(*ptr)->m_functions[14];
         o_Steam_SendMessageToConnection = (fSendMessageToConnection)(*ptr)->m_functions[11];
 
@@ -253,7 +240,7 @@ namespace PacketLogger::Hooks {
     }
 
     bool UninstallHooks() {
-        VolvoStructure** ptr = GetVolvoStructure();
+        VolvoStructure** ptr = (VolvoStructure**)SteamNetworkingSockets();
 
         LPVOID pAddress = (LPVOID) & (*ptr)->m_functions[0];
         SIZE_T dwSize = sizeof(pAddress) * 14;
