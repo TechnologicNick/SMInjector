@@ -100,6 +100,7 @@
     <ClInclude Include="include\hook.h" />
     <ClInclude Include="include\path_helper.h" />
     <ClInclude Include="include\plugin_config.h" />
+    <ClInclude Include="include\RTTI.h" />
     <ClInclude Include="include\sdk\sm\Contraption.hpp" />
     <ClInclude Include="include\sdk\sm\GameInfo.hpp" />
     <ClInclude Include="include\sdk\sm\GameStartupParams.hpp" />
