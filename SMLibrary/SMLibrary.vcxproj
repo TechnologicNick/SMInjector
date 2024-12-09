@@ -110,6 +110,7 @@
     <ClInclude Include="include\sigscan.h" />
     <ClInclude Include="include\sm_lib.h" />
     <ClInclude Include="include\stdafx.h" />
+    <ClInclude Include="include\Xrefs.h" />
     <ClInclude Include="src\hooks.h" />
   </ItemGroup>
   <ItemGroup>

@@ -9,15 +9,13 @@
 #include "steam.h"
 #include "logger.h"
 #include "RTTI.h"
+#include "Xrefs.h"
 
 #include <Event/EventBus.hpp>
 #include <Event/SteamInitializedEvent.hpp>
 
 #include <console.h>
 using Console::Color;
-
-constexpr uint64_t offset_SteamNetworkServer_ReceivePacket = 0x8df070;
-constexpr uint64_t offset_SteamNetworkClient_ReceivePacket = 0x4351e0;
 
 struct VolvoStructure
 {
@@ -221,30 +219,44 @@ namespace PacketLogger::Hooks {
 			return false;
 		}
 
+        const void* pSteamNetworkServer_ReceivePacket = SMLibrary::Xrefs::FindFunctionReferencingString(GetModuleHandle(NULL), "Received a network message from an unknown client");
+        if (!pSteamNetworkServer_ReceivePacket) {
+            Console::log(Color::Red, "Failed to find SteamNetworkServer_ReceivePacket function");
+            return false;
+        }
+        Console::log(Color::Aqua, "Found SteamNetworkServer_ReceivePacket: %p", pSteamNetworkServer_ReceivePacket);
+
+        const void* pSteamNetworkClient_ReceivePacket = SMLibrary::Xrefs::FindFunctionReferencingString(GetModuleHandle(NULL), "Processing initial packet from server tick: ");
+        if (!pSteamNetworkClient_ReceivePacket) {
+            Console::log(Color::Red, "Failed to find SteamNetworkClient_ReceivePacket function");
+            return false;
+        }
+        Console::log(Color::Aqua, "Found SteamNetworkClient_ReceivePacket: %p", pSteamNetworkClient_ReceivePacket);
+
         hck_SendReliablePacket = GameHooks::Inject(pSteamNetworkSend_vftable->second->functions[0], hook_SendReliablePacket, 5);
         hck_SendUnreliablePacket = GameHooks::Inject(pSteamNetworkSend_vftable->second->functions[1], hook_SendUnreliablePacket, 5);
-        // hck_ServerReceivePacket = GameHooks::Inject(pBaseAddress + offset_SteamNetworkServer_ReceivePacket, hook_ServerReceivePacket, 6);
-        // hck_ClientReceivePacket = GameHooks::Inject(pBaseAddress + offset_SteamNetworkClient_ReceivePacket, hook_ClientReceivePacket, 5);
-        
+        hck_ServerReceivePacket = GameHooks::Inject((void*)pSteamNetworkServer_ReceivePacket, hook_ServerReceivePacket, 6);
+        hck_ClientReceivePacket = GameHooks::Inject((void*)pSteamNetworkClient_ReceivePacket, hook_ClientReceivePacket, 5);
+
         if (!hck_SendReliablePacket) {
 			Console::log(Color::Red, "Failed to inject 'SendReliablePacket'!");
 			return false;
 		}
-        
+
         if (!hck_SendUnreliablePacket) {
             Console::log(Color::Red, "Failed to inject 'SendUnreliablePacket'");
             return false;
         }
-        
-        // if (!hck_ServerReceivePacket) {
-		// 	Console::log(Color::Red, "Failed to inject 'ReceivePacket'");
-		// 	return false;
-		// }
-        // 
-        // if (!hck_ClientReceivePacket) {
-        //     Console::log(Color::Red, "Failed to inject 'ReceivePacket'");
-        //     return false;
-        // }
+
+        if (!hck_ServerReceivePacket) {
+		    Console::log(Color::Red, "Failed to inject 'ServerReceivePacket'");
+		    return false;
+		}
+
+        if (!hck_ClientReceivePacket) {
+            Console::log(Color::Red, "Failed to inject 'ClientReceivePacket'");
+            return false;
+        }
 
         Console::log(Color::Aqua, "Hooks installed!");
         return true;

@@ -5,7 +5,6 @@
 #include <vector>
 #include <string>
 #include <memory>
-#include <stdexcept>
 #include <system_error>
 #include <rttidata.h>
 
