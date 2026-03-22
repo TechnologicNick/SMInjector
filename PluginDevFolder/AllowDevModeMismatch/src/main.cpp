@@ -17,7 +17,7 @@ LIB_RESULT PluginLoad() {
 		return false;
 	}
 
-	DWORD64 compare_flag = sigScanner.scan("\x38\x83\xF0\x00\x00\x00\x0F\x85", "xxxxxxxx");
+	DWORD64 compare_flag = sigScanner.scan("\x38\x43\x78\x0F\x85", "xxxxx");
 	if (!compare_flag) {
 		Console::log(Color::LightRed, "Unable to find developer mode flag comparison in memory");
 		return PLUGIN_ERROR;
@@ -26,7 +26,7 @@ LIB_RESULT PluginLoad() {
 	Console::log(Color::Aqua, "Found developer mode flag comparison at %p", compare_flag);
 
 	LPVOID dst = (LPVOID)compare_flag;
-	size_t len = 12;
+	size_t len = 9;
 	DWORD oldProtection;
 	DWORD temp;
 

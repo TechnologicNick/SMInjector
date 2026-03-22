@@ -1,0 +1,13 @@
+{
+  "lockfileVersion": 1,
+  "workspaces": {
+    "": {
+      "devDependencies": {
+        "@types/frida-gum": "^18.8.2",
+      },
+    },
+  },
+  "packages": {
+    "@types/frida-gum": ["@types/frida-gum@18.8.2", "", {}, "sha512-5KH6ITrKJQe1UWrNnbXXx3KXRe/Lx9I1EwkBdC+AMmlo9F5UC0PxdC959aGxhfjXBRIHWxXwXPi3JmeWIbeqeg=="],
+  }
+}

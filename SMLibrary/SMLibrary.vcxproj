@@ -22,13 +22,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -60,7 +60,7 @@
       <ConformanceMode>true</ConformanceMode>
       <Optimization>MaxSpeed</Optimization>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -75,7 +75,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -90,13 +90,27 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\console.h" />
+    <ClInclude Include="include\Event\ConnectToServerEvent.hpp" />
+    <ClInclude Include="include\Event\Event.hpp" />
+    <ClInclude Include="include\Event\EventBus.hpp" />
+    <ClInclude Include="include\Event\ProcessStartEvent.hpp" />
+    <ClInclude Include="include\Event\SteamInitializedEvent.hpp" />
     <ClInclude Include="include\gamehook.h" />
+    <ClInclude Include="include\hexdump.h" />
     <ClInclude Include="include\hook.h" />
     <ClInclude Include="include\path_helper.h" />
     <ClInclude Include="include\plugin_config.h" />
+    <ClInclude Include="include\RTTI.h" />
+    <ClInclude Include="include\sdk\sm\Contraption.hpp" />
+    <ClInclude Include="include\sdk\sm\GameInfo.hpp" />
+    <ClInclude Include="include\sdk\sm\GameStartupParams.hpp" />
+    <ClInclude Include="include\sdk\sm\Globals.hpp" />
+    <ClInclude Include="include\sdk\sm\ScrapMechanic.hpp" />
+    <ClInclude Include="include\sdk\sm\Types.hpp" />
     <ClInclude Include="include\sigscan.h" />
     <ClInclude Include="include\sm_lib.h" />
     <ClInclude Include="include\stdafx.h" />
+    <ClInclude Include="include\Xrefs.h" />
     <ClInclude Include="src\hooks.h" />
   </ItemGroup>
   <ItemGroup>

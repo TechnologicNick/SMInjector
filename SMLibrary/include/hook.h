@@ -1,3 +1,7 @@
+#pragma once
+
+#include "stdafx.h"
+
 #include <windows.h>
 
 #ifndef _SM_LIBRARY_ALLOW_OLD_HOOKS
@@ -15,10 +19,6 @@ using std::string;
 #include <map>
 using std::map;
 
-#include "stdafx.h"
-
-#ifndef __HOOK_H__
-#define __HOOK_H__
 
 typedef unsigned char BYTE;
 typedef long long longlong;
@@ -108,5 +108,3 @@ class HookUtility {
 			return true;
 		}
 };
-
-#endif

@@ -40,7 +40,7 @@ namespace LuaHook::Hooks {
 		const luaL_Reg* ptr = l;
 
 		int i = 0;
-		while (ptr->name != NULL) {
+		while (ptr && ptr->name != NULL) {
 			DEBUG_LOG(Color::Aqua, "hook_luaL_register: luaL_Reg[%d] name=[%s] func=[%p]", i++, ptr->name, (void*)ptr->func);
 
 			ptr++;
@@ -51,6 +51,7 @@ namespace LuaHook::Hooks {
 
 	int hook_luaL_loadstring(lua_State* L, const char* s) {
 		DEBUG_LOG(Color::Aqua, "hook_luaL_loadstring: s=[ ... ]");
+		DEBUG_LOG(Color::Gray, "hook_luaL_loadstring: content:\n%s", s);
 
 		std::map<std::string, std::any> fields = {
 			{"s", &s}

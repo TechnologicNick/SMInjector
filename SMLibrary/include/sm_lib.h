@@ -27,22 +27,32 @@ typedef LIB_RESULT (*LIB_CALLBACK)();
 #define _LIB_PLUGIN_NAME_STR "" _LIB_PLUGIN_NAME_STR_(_SM_PLUGIN_NAME) ""
 
 #ifdef _SM_LIBRARY_BUILD_PLUGIN
+#include "sdk/sm/Types.hpp"
+#include <Windows.h>
+#include "Event/ProcessStartEvent.hpp"
+
 extern LIB_RESULT PluginLoad();
 extern LIB_RESULT PluginUnload();
 
-_LIB_IMPORT void InjectPlugin(void*, const char*, LIB_CALLBACK, LIB_CALLBACK);
+BOOL WINAPI DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpReserved) {
 
-int __stdcall DllMain(void* hModule, unsigned long fdwReason, void* lpReserved) {
-	if(fdwReason == 1 /* DLL_PROCESS_ATTACH */) {
-		InjectPlugin(hModule, _LIB_PLUGIN_NAME_STR, PluginLoad, PluginUnload);
+	switch (fdwReason) {
+	case DLL_PROCESS_ATTACH:
+		SMLibrary::Event::GetEventBus<SMLibrary::Event::ProcessStartEvent>()->RegisterHandler([](const SMLibrary::Event::ProcessStartEvent&) {
+			PluginLoad();
+		});
+		break;
+
+	case DLL_PROCESS_DETACH:
+		break;
+
+	case DLL_THREAD_ATTACH:
+		break;
+
+	case DLL_THREAD_DETACH:
+		break;
 	}
 
-	//if(fdwReason == 0 /* DLL_PROCESS_DETACH */) {
-	//	UnloadLibrary(hModule, PluginUnload);
-	//}
-
-	return true;
+	return TRUE;
 }
-#else
-extern _LIB_EXPORT void InjectPlugin(void*, const char*, LIB_CALLBACK, LIB_CALLBACK);
 #endif

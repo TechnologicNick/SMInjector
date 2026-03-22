@@ -1,0 +1,5 @@
+{
+  "devDependencies": {
+    "@types/frida-gum": "^18.8.2"
+  }
+}

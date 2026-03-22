@@ -31,7 +31,7 @@ namespace Hooks {
 
 		const luaL_Reg* ptr = l;
 
-		for (int i = 0; ptr->name != NULL; i++, ptr++) {
+		for (int i = 0; ptr && ptr->name != NULL; i++, ptr++) {
 			Console::log(Color::Aqua, "hook_luaL_register: luaL_Reg[%d] name=[%s] func=[%p]", i, ptr->name, (void*)ptr->func);
 		}
 
