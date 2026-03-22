@@ -131,7 +131,10 @@ namespace PacketLogger::Logger {
 			return packets;
 		}
 
-		ReceivePacket(packets);
+		// If we failed to receive a packet, return the original packet
+		if (!ReceivePacket(packets)) {
+			packets.push_back(packet);
+		}
 
 		return packets;
 	}
