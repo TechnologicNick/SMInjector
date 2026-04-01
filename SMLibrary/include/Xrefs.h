@@ -133,19 +133,64 @@ namespace SMLibrary::Xrefs {
         IMAGE_SECTION_HEADER* section = IMAGE_FIRST_SECTION(ntHeaders);
         for (int i = 0; i < ntHeaders->FileHeader.NumberOfSections; ++i) {
             if (strncmp((char*)section->Name, ".text", 5) == 0) {
-                const size_t rdataBase = (size_t)moduleBase + section->VirtualAddress;
-                const size_t rdataSize = (size_t)section->Misc.VirtualSize;
+                const size_t sectionBase = (size_t)moduleBase + section->VirtualAddress;
+                const size_t sectionSize = (size_t)section->Misc.VirtualSize;
 
                 // https://gchq.github.io/CyberChef/#recipe=Disassemble_x86('64','Full%20x86%20architecture',16,0,true,false)&input=NDg4ZDA1MWJjYjZlMDA&oeol=CRLF
                 const uint16_t leaOpcode = 0x8D48; // 48 8D
 
-                for (size_t ptr = rdataBase; ptr < rdataBase + rdataSize - 2; ptr += 1) {
+                for (size_t ptr = sectionBase; ptr < sectionBase + sectionSize - 2; ptr += 1) {
                     if (*(uint16_t*)ptr == leaOpcode) {
-						const int32_t offset = *(uint32_t*)(ptr + 3) + 7; // +7 to account for the length of the instruction, as the offset is relative to the next instruction
+						const int32_t offset = *(int32_t*)(ptr + 3) + 7; // +7 to account for the length of the instruction, as the offset is relative to the next instruction
                         if (ptr + offset == (size_t)target) {
 							references.push_back((void*)ptr);
 						}
 					}
+                }
+            }
+            ++section;
+        }
+
+        return references;
+    }
+
+    /// <summary>
+    /// Finds all `call qword [rel _target]` code references to a given address in a module. This function is not guaranteed to find all references.
+    /// </summary>
+    /// <param name="moduleBase">The base address of the module to search.</param>
+    /// <param name="target">The address to search for.</param>
+    /// <returns>A vector of pointers to the addresses of the code references.</returns>
+    std::vector<void*> FindAllRipRelativeCallCodeReferencesToAddr(const HMODULE moduleBase, const void* target) {
+        std::vector<void*> references;
+
+        IMAGE_DOS_HEADER* dosHeader = (IMAGE_DOS_HEADER*)moduleBase;
+        if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE) {
+            Console::log(Color::LightRed, "Failed to find references: Invalid DOS signature");
+            return references;
+        }
+
+        IMAGE_NT_HEADERS* ntHeaders = (IMAGE_NT_HEADERS*)((BYTE*)moduleBase + dosHeader->e_lfanew);
+        if (ntHeaders->Signature != IMAGE_NT_SIGNATURE) {
+            Console::log(Color::LightRed, "Failed to find references: Invalid NT signature");
+            return references;
+        }
+
+        IMAGE_SECTION_HEADER* section = IMAGE_FIRST_SECTION(ntHeaders);
+        for (int i = 0; i < ntHeaders->FileHeader.NumberOfSections; ++i) {
+            if (strncmp((char*)section->Name, ".text", 5) == 0) {
+                const size_t sectionBase = (size_t)moduleBase + section->VirtualAddress;
+                const size_t sectionSize = (size_t)section->Misc.VirtualSize;
+
+                // https://gchq.github.io/CyberChef/#recipe=Disassemble_x86('64','Full%20x86%20architecture',16,0,true,false)&input=ZmYxNTg2OTA0YTAw&oeol=CRLF
+                const uint16_t callOpcode = 0x15FF; // FF 15
+
+                for (size_t ptr = sectionBase; ptr < sectionBase + sectionSize - 2; ptr += 1) {
+                    if (*(uint16_t*)ptr == callOpcode) {
+                        const int32_t offset = *(int32_t*)(ptr + 2) + 6; // +6 to account for the length of the instruction, as the offset is relative to the next instruction
+                        if (ptr + offset == (size_t)target) {
+                            references.push_back((void*)ptr);
+                        }
+                    }
                 }
             }
             ++section;
