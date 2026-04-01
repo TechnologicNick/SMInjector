@@ -12,6 +12,66 @@ using Console::Color;
 namespace SMLibrary::Xrefs {
 
     /// <summary>
+	/// Retrieves the address of an entry in the Import Address Table (IAT) of a module. Note that this function only works for functions that are imported by name, not by ordinal.
+    /// </summary>
+	/// <param name="hModule">The handle to the module whose IAT entry is to be retrieved.</param>
+	/// <param name="lpModuleName">The name of the module from which the function is imported (e.g. "msvcp140.dll").</param>
+	/// <param name="lpProcName">The name of the function to retrieve.</param>
+	/// <returns>A pointer to the function's address, or NULL if not found.</returns>
+    FARPROC* GetImportAddressTableEntry(HMODULE hModule, LPCSTR lpModuleName, LPCSTR lpProcName) {
+		// Get the address of the Import Address Table (IAT)
+		PIMAGE_DOS_HEADER pDosHeader = (PIMAGE_DOS_HEADER)hModule;
+		PIMAGE_NT_HEADERS pNtHeaders = (PIMAGE_NT_HEADERS)((BYTE*)hModule + pDosHeader->e_lfanew);
+		PIMAGE_IMPORT_DESCRIPTOR pImportDescriptor = (PIMAGE_IMPORT_DESCRIPTOR)((BYTE*)hModule + pNtHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress);
+
+		// Iterate through the import descriptors to find the module
+		while (pImportDescriptor->Name) {
+			const char* currentModuleName = (const char*)((BYTE*)hModule + pImportDescriptor->Name);
+			// Console::log(Color::Gray, "Module: %s", currentModuleName);
+			if (!_stricmp(currentModuleName, lpModuleName)) {
+				break;
+			}
+			pImportDescriptor++;
+		}
+
+		// If the module was not found, return NULL
+		if (!pImportDescriptor->Name) {
+			Console::log(Color::LightRed, "[GetImportAddressTableEntry] The module '%s' was not found in the import address table", lpModuleName);
+			return NULL;
+		}
+
+		// On loaded images:
+		//   OriginalFirstThunk points to the name or ordinal of the imported function.
+		//   FirstThunk points to the resolved function address.
+		PIMAGE_THUNK_DATA pOriginalThunk = (PIMAGE_THUNK_DATA)((BYTE*)hModule + pImportDescriptor->OriginalFirstThunk);
+		PIMAGE_THUNK_DATA pResolvedThunk = (PIMAGE_THUNK_DATA)((BYTE*)hModule + pImportDescriptor->FirstThunk);
+
+		// Iterate through the thunk table of hModule to find the function.
+		while (pOriginalThunk->u1.AddressOfData && pResolvedThunk->u1.AddressOfData) {
+
+			// If the thunk is imported by name
+			if ((pOriginalThunk->u1.AddressOfData & IMAGE_ORDINAL_FLAG) == 0) {
+				PIMAGE_IMPORT_BY_NAME pImportByName = (PIMAGE_IMPORT_BY_NAME)((BYTE*)hModule + pOriginalThunk->u1.AddressOfData);
+				// Console::log(Color::Gray, "  Function: %s", pImportByName->Name);
+				if (!_stricmp(pImportByName->Name, lpProcName)) {
+					return (FARPROC*)&(pResolvedThunk->u1.Function);
+				}
+			}
+			else {
+				// If the thunk is imported by ordinal
+				// Console::log(Color::Gray, "  Ordinal: %d", pOriginalThunk->u1.Ordinal);
+			}
+
+			pOriginalThunk++;
+			pResolvedThunk++;
+		}
+
+		// If the function was not found, return NULL
+		Console::log(Color::LightRed, "[GetImportAddressTableEntry] The function '%s' was not found in module '%s'", lpProcName, lpModuleName);
+		return NULL;
+	}
+
+    /// <summary>
     /// Finds the first occurrence of a byte pattern in a module.
     /// </summary>
     /// <param name="moduleBase">The base address of the module to search.</param>
