@@ -6,19 +6,12 @@
 using Console::Color;
 
 #include "hooks.h"
-#include "pipes.h"
 
 LIB_RESULT PluginLoad() {
 	Console::log(Color::Aqua, "Loading...");
 
-	if (!Scraptifine::Pipes::StartPipeServer()) {
-		Console::log(Color::Red, "Failed to initialize Scraptifine pipe server");
-		return PLUGIN_ERROR;
-	}
-
 	if (!Scraptifine::Hooks::InstallHooks()) {
 		Console::log(Color::Red, "Failed to install hooks");
-		Scraptifine::Pipes::StopPipeServer();
 		return PLUGIN_ERROR;
 	}
 
@@ -27,7 +20,6 @@ LIB_RESULT PluginLoad() {
 
 LIB_RESULT PluginUnload() {
 	Console::log(Color::Aqua, "Unloading...");
-	Scraptifine::Pipes::StopPipeServer();
 	Scraptifine::Hooks::UninstallHooks();
 	return PLUGIN_SUCCESSFULL;
 }
