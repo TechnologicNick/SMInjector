@@ -16,6 +16,17 @@ python .\benchmark.py --settings-config .\settings_uncapped_2160p.json --descrip
 python .\benchmark.py --settings-config .\settings_144fps_1080p.json --description "144 FPS cap, 1080p"
 ```
 
+Creative Terrain resolution sweep:
+
+```powershell
+python .\benchmark.py `
+  --save creative_terrain `
+  --settings-config .\settings_144fps_1080p.json `
+  --settings-config .\settings_144fps_1440p.json `
+  --settings-config .\settings_144fps_2160p.json `
+  --description "144 FPS cap, resolution sweep"
+```
+
 Useful filters:
 
 ```powershell
@@ -29,8 +40,9 @@ python .\benchmark.py --settings-config .\settings_144fps_1080p.json --descripti
 Each benchmark session creates:
 
 - `benchmark_results/<timestamp>/metadata.json`
-- `benchmark_results/<timestamp>/settings.json`
-- one run folder per `save + thread_count`
+- `benchmark_results/<timestamp>/settings.json` for single-preset sessions
+- `benchmark_results/<timestamp>/settings/<settings-config>.json` for multi-preset sessions
+- one run folder per `save + settings-config + thread_count`
 
 ## Generate Graphs
 
@@ -73,7 +85,8 @@ This writes merged outputs to `benchmark_results/<newest-session>/graphs_merged`
 Graph generation writes:
 
 - `summary.csv`
-- `<save>_dashboard.png`
+- `<save>_<settings-config>_dashboard.png`
+- `<save>_settings_comparison_dashboard.png` when a save has multiple settings presets in the same graph run
 
 The PNG title uses:
 

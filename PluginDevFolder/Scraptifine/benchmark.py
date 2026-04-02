@@ -48,6 +48,14 @@ class SaveSpec:
     bundled_path: Path
 
 
+@dataclass(frozen=True)
+class SettingsSpec:
+    name: str
+    path: Path
+    payload: dict[str, object]
+    snapshot_path: Path
+
+
 class EmptyCaptureError(RuntimeError):
     pass
 
@@ -150,8 +158,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--settings-config",
         type=Path,
-        default=DEFAULT_SETTINGS_CONFIG,
-        help="Settings preset JSON to apply before each benchmark run.",
+        action="append",
+        help="Settings preset JSON to apply before each benchmark run. Repeat to benchmark multiple presets in one session.",
     )
     parser.add_argument(
         "--save-display-name",
@@ -192,6 +200,21 @@ def resolve_settings_config_path(settings_config: Path) -> Path:
     raise FileNotFoundError(f"Settings config not found: {settings_config}")
 
 
+def resolve_settings_config_paths(
+    settings_configs: list[Path] | None,
+) -> list[Path]:
+    requested = settings_configs or [DEFAULT_SETTINGS_CONFIG]
+    resolved = [resolve_settings_config_path(path) for path in requested]
+    unique: list[Path] = []
+    seen: set[Path] = set()
+    for path in resolved:
+        if path in seen:
+            continue
+        seen.add(path)
+        unique.append(path)
+    return unique
+
+
 def load_settings_payload(settings_config_path: Path) -> dict[str, object]:
     payload = json.loads(settings_config_path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
@@ -199,29 +222,64 @@ def load_settings_payload(settings_config_path: Path) -> dict[str, object]:
     return payload
 
 
-def write_session_settings_snapshot(output_root: Path, settings_payload: dict[str, object]) -> Path:
-    snapshot_path = output_root / "settings.json"
-    snapshot_path.write_text(
-        json.dumps(settings_payload, indent=4) + "\n",
-        encoding="utf-8",
-    )
+def write_settings_snapshot(snapshot_path: Path, settings_payload: dict[str, object]) -> Path:
+    snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+    snapshot_path.write_text(json.dumps(settings_payload, indent=4) + "\n", encoding="utf-8")
     return snapshot_path
+
+
+def create_settings_specs(
+    output_root: Path, settings_config_paths: list[Path]
+) -> list[SettingsSpec]:
+    settings_specs: list[SettingsSpec] = []
+    seen_names: set[str] = set()
+
+    for settings_config_path in settings_config_paths:
+        name = settings_config_path.stem
+        if name in seen_names:
+            raise ValueError(f"Duplicate settings config name: {name}")
+        seen_names.add(name)
+
+        payload = load_settings_payload(settings_config_path)
+        if len(settings_config_paths) == 1:
+            snapshot_path = write_settings_snapshot(output_root / "settings.json", payload)
+        else:
+            snapshot_path = write_settings_snapshot(output_root / "settings" / f"{name}.json", payload)
+        settings_specs.append(
+            SettingsSpec(
+                name=name,
+                path=settings_config_path,
+                payload=payload,
+                snapshot_path=snapshot_path,
+            )
+        )
+
+    return settings_specs
 
 
 def write_session_metadata(
     output_root: Path,
     description: str,
     save_display_names: dict[str, str],
-    settings_config_path: Path,
-    settings_snapshot_path: Path,
+    settings_specs: list[SettingsSpec],
 ) -> None:
+    settings_configs = [
+        {
+            "name": item.name,
+            "path": str(item.path),
+            "snapshot_path": str(item.snapshot_path),
+        }
+        for item in settings_specs
+    ]
     metadata = {
         "description": description,
         "save_display_names": save_display_names,
-        "settings_config_name": settings_config_path.stem,
-        "settings_config_path": str(settings_config_path),
-        "settings_snapshot_path": str(settings_snapshot_path),
+        "settings_configs": settings_configs,
     }
+    if len(settings_specs) == 1:
+        metadata["settings_config_name"] = settings_specs[0].name
+        metadata["settings_config_path"] = str(settings_specs[0].path)
+        metadata["settings_snapshot_path"] = str(settings_specs[0].snapshot_path)
     (output_root / "metadata.json").write_text(
         json.dumps(metadata, indent=4) + "\n",
         encoding="utf-8",
@@ -408,7 +466,7 @@ def selected_saves(save_names: list[str] | None) -> Iterable[SaveSpec]:
     return SAVE_SPECS.values()
 
 
-def validate_environment(args: argparse.Namespace, settings_config_path: Path) -> None:
+def validate_environment(args: argparse.Namespace, settings_config_paths: list[Path]) -> None:
     if not args.threads:
         raise ValueError("At least one thread count must be provided")
 
@@ -428,8 +486,12 @@ def validate_environment(args: argparse.Namespace, settings_config_path: Path) -
     if not args.injector.exists():
         raise FileNotFoundError(f"Injector not found: {args.injector}")
 
-    if not settings_config_path.exists():
-        raise FileNotFoundError(f"Settings config not found: {settings_config_path}")
+    if not settings_config_paths:
+        raise ValueError("At least one settings config must be provided")
+
+    for settings_config_path in settings_config_paths:
+        if not settings_config_path.exists():
+            raise FileNotFoundError(f"Settings config not found: {settings_config_path}")
 
     if not BENCHMARK_SAVES_DIR.exists():
         raise FileNotFoundError(
@@ -456,12 +518,10 @@ def run_single_benchmark(
     thread_count: int,
     load_seconds: float,
     measure_seconds: float,
-    settings_config_path: Path,
-    settings_snapshot_path: Path,
-    settings_payload: dict[str, object],
+    settings_spec: SettingsSpec,
     max_empty_capture_retries: int,
 ) -> None:
-    run_name = f"{save_spec.name}_threads_{thread_count:02d}"
+    run_name = f"{save_spec.name}_{settings_spec.name}_threads_{thread_count:02d}"
     run_dir = output_root / run_name
     run_dir.mkdir(parents=True, exist_ok=False)
 
@@ -470,7 +530,7 @@ def run_single_benchmark(
 
     max_attempts = max_empty_capture_retries + 1
     for attempt in range(1, max_attempts + 1):
-        write_settings(settings_payload)
+        write_settings(settings_spec.payload)
         cleanup_attempt_artifacts(run_dir)
 
         before_pids = list_scrap_mechanic_pids()
@@ -537,9 +597,9 @@ def run_single_benchmark(
                 "archived_afterburner_log": str(archived_hml),
                 "archived_game_log": str(archived_game_log),
                 "settings_path": str(SETTINGS_PATH),
-                "settings_config_name": settings_config_path.stem,
-                "settings_config_path": str(settings_config_path),
-                "settings_snapshot_path": str(settings_snapshot_path),
+                "settings_config_name": settings_spec.name,
+                "settings_config_path": str(settings_spec.path),
+                "settings_snapshot_path": str(settings_spec.snapshot_path),
                 "capture_attempts": attempt,
                 "sample_row_count": sample_row_count,
             }
@@ -573,39 +633,36 @@ def run_single_benchmark(
 
 def main() -> int:
     args = parse_args()
-    settings_config_path = resolve_settings_config_path(args.settings_config)
-    validate_environment(args, settings_config_path)
+    settings_config_paths = resolve_settings_config_paths(args.settings_config)
+    validate_environment(args, settings_config_paths)
     save_display_names = normalize_save_display_names(args.save_display_name)
-    settings_payload = load_settings_payload(settings_config_path)
 
     output_root = args.output_root / time.strftime("%Y%m%d-%H%M%S")
     output_root.mkdir(parents=True, exist_ok=False)
-    settings_snapshot_path = write_session_settings_snapshot(output_root, settings_payload)
+    settings_specs = create_settings_specs(output_root, settings_config_paths)
     write_session_metadata(
         output_root=output_root,
         description=args.description,
         save_display_names=save_display_names,
-        settings_config_path=settings_config_path,
-        settings_snapshot_path=settings_snapshot_path,
+        settings_specs=settings_specs,
     )
 
     print(f"[info] results root: {output_root}")
     print(f"[info] injector: {args.injector}")
 
-    for save_spec in selected_saves(args.save):
-        for thread_count in args.threads:
-            run_single_benchmark(
-                injector_path=args.injector,
-                output_root=output_root,
-                save_spec=save_spec,
-                thread_count=thread_count,
-                load_seconds=args.load_seconds,
-                measure_seconds=args.measure_seconds,
-                settings_config_path=settings_config_path,
-                settings_snapshot_path=settings_snapshot_path,
-                settings_payload=settings_payload,
-                max_empty_capture_retries=args.max_empty_capture_retries,
-            )
+    for settings_spec in settings_specs:
+        for save_spec in selected_saves(args.save):
+            for thread_count in args.threads:
+                run_single_benchmark(
+                    injector_path=args.injector,
+                    output_root=output_root,
+                    save_spec=save_spec,
+                    thread_count=thread_count,
+                    load_seconds=args.load_seconds,
+                    measure_seconds=args.measure_seconds,
+                    settings_spec=settings_spec,
+                    max_empty_capture_retries=args.max_empty_capture_retries,
+                )
 
     print("[done] all benchmark runs completed")
     return 0

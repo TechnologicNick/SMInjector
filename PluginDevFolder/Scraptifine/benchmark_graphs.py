@@ -33,6 +33,9 @@ DEFAULT_SAVE_DISPLAY_NAMES = {
 @dataclass(frozen=True)
 class RunMetrics:
     save: str
+    settings_config_name: str
+    settings_config_path: str | None
+    settings_snapshot_path: str | None
     thread_count: int
     measure_seconds: float
     sample_count: int
@@ -72,6 +75,7 @@ class SessionFallback:
 class SessionMetadata:
     description: str
     save_display_names: dict[str, str]
+    settings_configs: list[dict[str, str]]
     settings_config_name: str | None
     settings_config_path: str | None
     settings_snapshot_path: str | None
@@ -160,6 +164,7 @@ def load_session_metadata(session_dir: Path) -> SessionMetadata:
     metadata_path = session_dir / "metadata.json"
     description = ""
     save_display_names = dict(DEFAULT_SAVE_DISPLAY_NAMES)
+    settings_configs: list[dict[str, str]] = []
     settings_config_name = None
     settings_config_path = None
     settings_snapshot_path = None
@@ -169,6 +174,10 @@ def load_session_metadata(session_dir: Path) -> SessionMetadata:
         description = str(raw.get("description", ""))
         for save_name, label in raw.get("save_display_names", {}).items():
             save_display_names[str(save_name)] = str(label)
+        for item in raw.get("settings_configs", []):
+            if not isinstance(item, dict):
+                continue
+            settings_configs.append({str(key): str(value) for key, value in item.items()})
         if raw.get("settings_config_name") is not None:
             settings_config_name = str(raw.get("settings_config_name"))
         if raw.get("settings_config_path") is not None:
@@ -179,6 +188,7 @@ def load_session_metadata(session_dir: Path) -> SessionMetadata:
     return SessionMetadata(
         description=description,
         save_display_names=save_display_names,
+        settings_configs=settings_configs,
         settings_config_name=settings_config_name,
         settings_config_path=settings_config_path,
         settings_snapshot_path=settings_snapshot_path,
@@ -200,6 +210,7 @@ def apply_session_metadata_overrides(
     return SessionMetadata(
         description=description,
         save_display_names=save_display_names,
+        settings_configs=session_metadata.settings_configs,
         settings_config_name=session_metadata.settings_config_name,
         settings_config_path=session_metadata.settings_config_path,
         settings_snapshot_path=session_metadata.settings_snapshot_path,
@@ -211,6 +222,8 @@ def write_session_metadata(session_dir: Path, session_metadata: SessionMetadata)
         "description": session_metadata.description,
         "save_display_names": session_metadata.save_display_names,
     }
+    if session_metadata.settings_configs:
+        metadata["settings_configs"] = session_metadata.settings_configs
     if session_metadata.settings_config_name is not None:
         metadata["settings_config_name"] = session_metadata.settings_config_name
     if session_metadata.settings_config_path is not None:
@@ -274,9 +287,17 @@ def extract_target_gpu_mapping(
     if not gpu_names:
         raise HmlParseError(f"{hml_path}: no GPU names found in row 01")
 
+    matches: list[GpuMapping] = []
     for idx, name in enumerate(gpu_names, start=1):
         if TARGET_GPU_NAME in name:
-            return GpuMapping(slot=idx, name=name)
+            matches.append(GpuMapping(slot=idx, name=name))
+
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) > 1:
+        raise HmlParseError(
+            f"{hml_path}: target GPU '{TARGET_GPU_NAME}' appeared multiple times in row 01"
+        )
 
     raise HmlParseError(
         f"{hml_path}: target GPU '{TARGET_GPU_NAME}' was not found in {gpu_names}"
@@ -308,7 +329,16 @@ def parse_hml_metrics(
 
     expected_fields = len(metric_names) + 2
 
-    gpu_mapping = extract_target_gpu_mapping(rows_with_lines, hml_path)
+    try:
+        gpu_mapping = extract_target_gpu_mapping(rows_with_lines, hml_path)
+    except HmlParseError as exc:
+        if session_fallback.gpu_mapping is None:
+            raise
+        message = str(exc)
+        if TARGET_GPU_NAME not in message and "row 01" not in message:
+            raise
+        gpu_mapping = session_fallback.gpu_mapping
+
     if gpu_mapping is None:
         if session_fallback.gpu_mapping is None:
             raise HmlParseError("Missing required HML row type 01")
@@ -420,6 +450,17 @@ def load_run_metrics(
     measure_seconds = float(metadata["measure_seconds"])
     thread_count = int(metadata["thread_count"])
     save = str(metadata["save"])
+    settings_config_name = str(metadata.get("settings_config_name", "default"))
+    settings_config_path = (
+        str(metadata["settings_config_path"])
+        if metadata.get("settings_config_path") is not None
+        else None
+    )
+    settings_snapshot_path = (
+        str(metadata["settings_snapshot_path"])
+        if metadata.get("settings_snapshot_path") is not None
+        else None
+    )
 
     (
         gpu_slot,
@@ -445,6 +486,9 @@ def load_run_metrics(
 
     return RunMetrics(
         save=save,
+        settings_config_name=settings_config_name,
+        settings_config_path=settings_config_path,
+        settings_snapshot_path=settings_snapshot_path,
         thread_count=thread_count,
         measure_seconds=measure_seconds,
         sample_count=sample_count,
@@ -549,7 +593,7 @@ def collect_metrics(
         )
         for session_dir in session_dirs
     }
-    selected_runs: dict[tuple[str, int], tuple[Path, Path]] = {}
+    selected_runs: dict[tuple[str, str, int], tuple[Path, Path]] = {}
     for session_dir in sorted(session_dirs, key=lambda path: path.stat().st_mtime):
         for run_dir in iter_run_dirs(session_dir):
             metadata_path = run_dir / "metadata.json"
@@ -557,7 +601,11 @@ def collect_metrics(
                 continue
             try:
                 metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-                key = (str(metadata["save"]), int(metadata["thread_count"]))
+                key = (
+                    str(metadata["save"]),
+                    str(metadata.get("settings_config_name", "default")),
+                    int(metadata["thread_count"]),
+                )
             except Exception:
                 continue
             selected_runs[key] = (session_dir, run_dir)
@@ -585,7 +633,7 @@ def collect_metrics(
 
         collected.append(metrics)
 
-    collected.sort(key=lambda item: (item.save, item.thread_count))
+    collected.sort(key=lambda item: (item.save, item.settings_config_name, item.thread_count))
     return collected
 
 
@@ -596,6 +644,9 @@ def write_summary_csv(output_dir: Path, metrics_rows: list[RunMetrics]) -> Path:
             handle,
             fieldnames=[
                 "save",
+                "settings_config_name",
+                "settings_config_path",
+                "settings_snapshot_path",
                 "thread_count",
                 "sample_count",
                 "measure_seconds",
@@ -619,6 +670,9 @@ def write_summary_csv(output_dir: Path, metrics_rows: list[RunMetrics]) -> Path:
             writer.writerow(
                 {
                     "save": item.save,
+                    "settings_config_name": item.settings_config_name,
+                    "settings_config_path": item.settings_config_path or "",
+                    "settings_snapshot_path": item.settings_snapshot_path or "",
                     "thread_count": item.thread_count,
                     "sample_count": item.sample_count,
                     "measure_seconds": f"{item.measure_seconds:.3f}",
@@ -638,6 +692,61 @@ def write_summary_csv(output_dir: Path, metrics_rows: list[RunMetrics]) -> Path:
                 }
             )
     return output_path
+
+
+def try_load_settings_payload(path_str: str | None) -> dict[str, object] | None:
+    if not path_str:
+        return None
+
+    path = Path(path_str)
+    if not path.exists():
+        return None
+
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+    if not isinstance(payload, dict):
+        return None
+    return payload
+
+
+def settings_resolution_label(item: RunMetrics) -> str | None:
+    payload = try_load_settings_payload(item.settings_snapshot_path)
+    if payload is None:
+        payload = try_load_settings_payload(item.settings_config_path)
+    if payload is None:
+        return None
+
+    width = payload.get("Width")
+    height = payload.get("Height")
+    if not isinstance(width, (int, float)) or not isinstance(height, (int, float)):
+        return None
+
+    height_int = int(height)
+    width_int = int(width)
+    if height_int in {720, 1080, 1440, 2160}:
+        return f"{height_int}p"
+    return f"{width_int}x{height_int}"
+
+
+def build_settings_label_map(rows: list[RunMetrics]) -> dict[str, str]:
+    unique_rows: dict[str, RunMetrics] = {}
+    for item in rows:
+        unique_rows.setdefault(item.settings_config_name, item)
+
+    base_labels: dict[str, str] = {}
+    counts: dict[str, int] = {}
+    for settings_name, item in unique_rows.items():
+        label = settings_resolution_label(item) or settings_name
+        base_labels[settings_name] = label
+        counts[label] = counts.get(label, 0) + 1
+
+    resolved: dict[str, str] = {}
+    for settings_name, label in base_labels.items():
+        resolved[settings_name] = label if counts[label] == 1 else settings_name
+    return resolved
 
 
 def annotate_selected_points(
@@ -679,6 +788,7 @@ def make_dashboard(
     output_dir: Path,
     session_name: str,
     save_name: str,
+    settings_config_name: str,
     display_name: str,
     description: str,
     rows: list[RunMetrics],
@@ -696,7 +806,7 @@ def make_dashboard(
 
     fig = plt.figure(figsize=figsize, constrained_layout=True)
     mosaic = fig.subplot_mosaic(build_mosaic(selected_plots))
-    title = f"Scraptifine Benchmark: {display_name}"
+    title = f"Scraptifine Benchmark: {display_name} ({settings_config_name})"
     if description:
         title += f" - {description}"
     fig.suptitle(title, fontsize=16)
@@ -786,7 +896,173 @@ def make_dashboard(
         annotate_selected_points(ax_usage, rows, lambda item: item.avg_cpu_usage_pct, "{:.1f}", "#4c78a8", y_offset=10.0)
         annotate_selected_points(ax_usage, rows, lambda item: item.avg_gpu_usage_pct, "{:.1f}", "#f58518", y_offset=-18.0)
 
-    output_path = output_dir / f"{save_name}_dashboard.png"
+    output_path = output_dir / f"{save_name}_{settings_config_name}_dashboard.png"
+    fig.savefig(output_path, dpi=160)
+    plt.close(fig)
+    return output_path
+
+
+def make_settings_comparison_dashboard(
+    output_dir: Path,
+    save_name: str,
+    display_name: str,
+    description: str,
+    rows: list[RunMetrics],
+    selected_plots: list[str],
+) -> Path:
+    grouped_rows: dict[str, list[RunMetrics]] = {}
+    for item in rows:
+        grouped_rows.setdefault(item.settings_config_name, []).append(item)
+
+    label_map = build_settings_label_map(rows)
+    ordered_settings = sorted(
+        grouped_rows,
+        key=lambda name: (
+            label_map.get(name, name),
+            name,
+        ),
+    )
+
+    all_thread_counts = sorted({item.thread_count for item in rows})
+    max_thread_count = max(all_thread_counts)
+    x_ticks = sorted({all_thread_counts[0], *range(4, max_thread_count + 1, 4)})
+
+    if len(selected_plots) <= 2:
+        figsize = (14, 5.5)
+    else:
+        figsize = (14, 9)
+
+    fig = plt.figure(figsize=figsize, constrained_layout=True)
+    mosaic = fig.subplot_mosaic(build_mosaic(selected_plots))
+    title = f"Scraptifine Benchmark: {display_name} Settings Comparison"
+    if description:
+        title += f" - {description}"
+    fig.suptitle(title, fontsize=16)
+
+    colors = list(plt.cm.tab10.colors)
+
+    if "energy" in mosaic:
+        ax_energy = mosaic["energy"]
+        for idx, settings_name in enumerate(ordered_settings):
+            color = colors[idx % len(colors)]
+            setting_rows = sorted(grouped_rows[settings_name], key=lambda item: item.thread_count)
+            thread_counts = [item.thread_count for item in setting_rows]
+            total_energy = [item.total_energy_j for item in setting_rows]
+            ax_energy.plot(
+                thread_counts,
+                total_energy,
+                marker="o",
+                color=color,
+                label=f"{label_map[settings_name]} total energy",
+            )
+        ax_energy.set_title("Energy Usage")
+        ax_energy.set_xlabel("Thread Count")
+        ax_energy.set_ylabel("Energy (J)")
+        ax_energy.set_xticks(x_ticks)
+        ax_energy.grid(True, alpha=0.3)
+        ax_energy.legend()
+
+    if "power" in mosaic:
+        ax_power = mosaic["power"]
+        max_power = 0.0
+        for idx, settings_name in enumerate(ordered_settings):
+            color = colors[idx % len(colors)]
+            setting_rows = sorted(grouped_rows[settings_name], key=lambda item: item.thread_count)
+            thread_counts = [item.thread_count for item in setting_rows]
+            cpu_power = [item.avg_cpu_power_w for item in setting_rows]
+            gpu_power = [item.avg_gpu_power_w for item in setting_rows]
+            max_power = max(max_power, *cpu_power, *gpu_power)
+            label = label_map[settings_name]
+            ax_power.plot(
+                thread_counts,
+                cpu_power,
+                marker="o",
+                linestyle="--",
+                color=color,
+                label=f"{label} CPU power",
+            )
+            ax_power.plot(
+                thread_counts,
+                gpu_power,
+                marker="o",
+                linestyle="-",
+                color=color,
+                label=f"{label} GPU power",
+            )
+        ax_power.set_title("Power Usage")
+        ax_power.set_xlabel("Thread Count")
+        ax_power.set_ylabel("Power (W)")
+        ax_power.set_xticks(x_ticks)
+        ax_power.set_ylim(bottom=0, top=max_power * 1.12 if max_power > 0 else None)
+        ax_power.grid(True, alpha=0.3)
+        ax_power.legend()
+
+    if "fps" in mosaic:
+        ax_fps = mosaic["fps"]
+        for idx, settings_name in enumerate(ordered_settings):
+            color = colors[idx % len(colors)]
+            setting_rows = sorted(grouped_rows[settings_name], key=lambda item: item.thread_count)
+            thread_counts = [item.thread_count for item in setting_rows]
+            avg_fps = [item.avg_fps for item in setting_rows]
+            low_fps = [item.fps_1pct_low for item in setting_rows]
+            label = label_map[settings_name]
+            ax_fps.plot(
+                thread_counts,
+                avg_fps,
+                marker="o",
+                linestyle="-",
+                color=color,
+                label=f"{label} average FPS",
+            )
+            ax_fps.plot(
+                thread_counts,
+                low_fps,
+                marker="o",
+                linestyle=":",
+                color=color,
+                label=f"{label} 1% low FPS",
+            )
+        ax_fps.set_title("Framerate")
+        ax_fps.set_xlabel("Thread Count")
+        ax_fps.set_ylabel("FPS")
+        ax_fps.set_xticks(x_ticks)
+        ax_fps.grid(True, alpha=0.3)
+        ax_fps.legend()
+
+    if "usage" in mosaic:
+        ax_usage = mosaic["usage"]
+        for idx, settings_name in enumerate(ordered_settings):
+            color = colors[idx % len(colors)]
+            setting_rows = sorted(grouped_rows[settings_name], key=lambda item: item.thread_count)
+            thread_counts = [item.thread_count for item in setting_rows]
+            cpu_usage = [item.avg_cpu_usage_pct for item in setting_rows]
+            gpu_usage = [item.avg_gpu_usage_pct for item in setting_rows]
+            label = label_map[settings_name]
+            ax_usage.plot(
+                thread_counts,
+                cpu_usage,
+                marker="o",
+                linestyle="--",
+                color=color,
+                label=f"{label} CPU usage",
+            )
+            ax_usage.plot(
+                thread_counts,
+                gpu_usage,
+                marker="o",
+                linestyle="-",
+                color=color,
+                label=f"{label} GPU usage",
+            )
+        ax_usage.set_title("CPU and GPU Usage")
+        ax_usage.set_xlabel("Thread Count")
+        ax_usage.set_ylabel("Usage (%)")
+        ax_usage.set_xticks(x_ticks)
+        ax_usage.set_ylim(bottom=0)
+        ax_usage.grid(True, alpha=0.3)
+        ax_usage.legend()
+
+    output_path = output_dir / f"{save_name}_settings_comparison_dashboard.png"
     fig.savefig(output_path, dpi=160)
     plt.close(fig)
     return output_path
@@ -822,15 +1098,35 @@ def main() -> int:
     summary_path = write_summary_csv(output_dir, rows)
     print(f"[info] wrote summary: {summary_path}")
 
-    grouped: dict[str, list[RunMetrics]] = {}
+    grouped: dict[tuple[str, str], list[RunMetrics]] = {}
     for row in rows:
-        grouped.setdefault(row.save, []).append(row)
+        grouped.setdefault((row.save, row.settings_config_name), []).append(row)
 
-    for save_name, save_rows in grouped.items():
+    for (save_name, settings_config_name), save_rows in grouped.items():
         display_name = session_metadata.save_display_names.get(save_name, save_name)
         dashboard_path = make_dashboard(
             output_dir=output_dir,
             session_name=newest_session_dir.name,
+            save_name=save_name,
+            settings_config_name=settings_config_name,
+            display_name=display_name,
+            description=session_metadata.description,
+            rows=save_rows,
+            selected_plots=args.plots,
+        )
+        print(f"[info] wrote dashboard: {dashboard_path}")
+
+    comparison_groups: dict[str, list[RunMetrics]] = {}
+    for row in rows:
+        comparison_groups.setdefault(row.save, []).append(row)
+
+    for save_name, save_rows in comparison_groups.items():
+        settings_names = {item.settings_config_name for item in save_rows}
+        if len(settings_names) < 2:
+            continue
+        display_name = session_metadata.save_display_names.get(save_name, save_name)
+        dashboard_path = make_settings_comparison_dashboard(
+            output_dir=output_dir,
             save_name=save_name,
             display_name=display_name,
             description=session_metadata.description,
