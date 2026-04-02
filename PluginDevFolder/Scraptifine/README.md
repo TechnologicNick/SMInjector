@@ -1,5 +1,7 @@
 # Scraptifine Benchmarking
 
+Scraptifine is a Scrap Mechanic performance mod focused on reducing excessive worker-thread usage. It currently exposes a `-threads` launch argument that overrides the worker count the game sees, and it includes benchmark tooling for measuring how different thread counts and graphics settings affect CPU power, GPU power, and utilization.
+
 ## Run Benchmarks
 
 Run from [PluginDevFolder/Scraptifine](C:\Users\Nick\Source\repos\SMInjector\PluginDevFolder\Scraptifine).
