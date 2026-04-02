@@ -3,9 +3,12 @@
 #include <iostream>
 #include <windows.h>
 #include <tlhelp32.h>
+#include <shellapi.h>
 
 #include <iterator>
 #include <filesystem>
+#include <string>
+#include <vector>
 
 #include "find_steam.h"
 
@@ -23,6 +26,64 @@ fs::path get_dir_path() {
 	TCHAR dir[MAX_PATH] = { 0 };
 	DWORD length = GetModuleFileName(NULL, dir, _countof(dir));
 	return fs::path(dir).parent_path();
+}
+
+std::wstring QuoteArgument(const std::wstring& argument) {
+    if (argument.empty()) {
+        return L"\"\"";
+    }
+
+    if (argument.find_first_of(L" \t\"") == std::wstring::npos) {
+        return argument;
+    }
+
+    std::wstring quoted = L"\"";
+    size_t backslashCount = 0;
+
+    for (wchar_t ch : argument) {
+        if (ch == L'\\') {
+            ++backslashCount;
+            continue;
+        }
+
+        if (ch == L'"') {
+            quoted.append(backslashCount * 2 + 1, L'\\');
+            quoted.push_back(L'"');
+            backslashCount = 0;
+            continue;
+        }
+
+        if (backslashCount != 0) {
+            quoted.append(backslashCount, L'\\');
+            backslashCount = 0;
+        }
+
+        quoted.push_back(ch);
+    }
+
+    if (backslashCount != 0) {
+        quoted.append(backslashCount * 2, L'\\');
+    }
+
+    quoted.push_back(L'"');
+    return quoted;
+}
+
+std::wstring BuildForwardedGameArguments() {
+    int argc = 0;
+    LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    if (!argv) {
+        return L"-dev";
+    }
+
+    std::wstring forwarded = L"-dev";
+    for (int i = 1; i < argc; ++i) {
+        forwarded += L" ";
+        forwarded += QuoteArgument(argv[i]);
+    }
+
+    LocalFree(argv);
+    return forwarded;
 }
 
 BOOL startup(fs::path in_exe, fs::path in_dir, std::wstring in_cmd, HANDLE &hProcess, HANDLE &hThread) {
@@ -89,7 +150,8 @@ int main(int argc, char** argv) {
 	HANDLE hThread;
 	fs::path exe_dir = game_path / "Release";
 	fs::path exe_exe = game_path / "Release" / "ScrapMechanic.exe";
-	if(startup(exe_exe, exe_dir, L"-dev", hProcess, hThread)) {
+    const std::wstring gameArguments = BuildForwardedGameArguments();
+	if(startup(exe_exe, exe_dir, gameArguments, hProcess, hThread)) {
 
 		// Set the dll directory so SMLibrary.dll can load all it's dependencies
 		if (!InjectSetDllDirectory(hProcess, dir_path.c_str())) {

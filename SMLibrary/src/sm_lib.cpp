@@ -14,6 +14,7 @@ namespace fs = std::filesystem;
 
 #include "../include/sm_lib.h"
 #include "../include/plugin_config.h"
+#include "../include/command_line.h"
 
 #include "../include/console.h"
 using Console::Color;
@@ -106,7 +107,9 @@ namespace SMLibrary {
 BOOL WINAPI DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpReserved) {
 	switch(fdwReason)  { 
 		case DLL_PROCESS_ATTACH:
-			MessageBox(0, L"From DLL\n", L"Process Attach", MB_ICONINFORMATION);
+			if (!SMLibrary::CommandLine::HasArgument(L"-skip-initial-message-box")) {
+				MessageBox(0, L"From DLL\n", L"Process Attach", MB_ICONINFORMATION);
+			}
 
 			SMLibrary::OnInject(SMLibrary::GetDllPath(hModule));
 			break;
