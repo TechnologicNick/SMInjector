@@ -19,6 +19,7 @@ DEFAULT_INJECTOR = REPO_ROOT / "SMInjector" / "x64" / "Debug" / "SMInjector.exe"
 DEFAULT_RESULTS_ROOT = SCRIPT_DIR / "benchmark_results"
 BENCHMARK_SAVES_DIR = SCRIPT_DIR / "benchmark_saves"
 DEFAULT_THREAD_COUNTS = (1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 24, 32)
+DEFAULT_SETTINGS_CONFIG = SCRIPT_DIR / "settings_uncapped_2160p.json"
 SETTINGS_PATH = Path(
     r"C:\Users\Nick\AppData\Roaming\Axolot Games\Scrap Mechanic\User\User_76561198142527219\settings.json"
 )
@@ -41,48 +42,14 @@ ULONG_PTR = (
     ctypes.c_ulonglong if ctypes.sizeof(ctypes.c_void_p) == 8 else ctypes.c_ulong
 )
 
-SETTINGS_TEMPLATE = {
-    "AmbientVolume": 0.0,
-    "Bloom": 1,
-    "Brightness": 0.0,
-    "CameraShake": 1,
-    "DOF": 1,
-    "DevConsole": 0,
-    "DisplayMode": 3,
-    "DrawDistance": 4,
-    "DynamicLights": 1,
-    "EffectVolume": 0.8000000119209290,
-    "FOV": 9,
-    "FXAA": 1,
-    "Foliage": 4,
-    "FrameRateCap": 10000.0,
-    "GUIVolume": 0.8000000119209290,
-    "Godrays": 1,
-    "GraphicsSettingVersion": "32187_32_1",
-    "Height": 2160,
-    "InvYAxisState": 0,
-    "Language": "English",
-    "MasterVolume": 1.0,
-    "MouseSpeed": 0.3199999928474426,
-    "MusicVolume": 0.0,
-    "ParticleQuality": 3,
-    "ReflectionQuality": 3,
-    "SSAO": 3,
-    "ShaderQuality": 3,
-    "ShadowQuality": 3,
-    "ShadowResolution": 3,
-    "TextureFiltering": 4,
-    "TextureQuality": 2,
-    "VehicleCameraMode": 1,
-    "VerticalSync": 0,
-    "Width": 3840,
-}
-
-
 @dataclass(frozen=True)
 class SaveSpec:
     name: str
     bundled_path: Path
+
+
+class EmptyCaptureError(RuntimeError):
+    pass
 
 
 SAVE_SPECS = {
@@ -93,6 +60,12 @@ SAVE_SPECS = {
         "creative_terrain", BENCHMARK_SAVES_DIR / "BenchmarkCreativeTerrain.db"
     ),
     "survival": SaveSpec("survival", BENCHMARK_SAVES_DIR / "BenchmarkSurvival.db"),
+}
+
+DEFAULT_SAVE_DISPLAY_NAMES = {
+    "creative_flat": "Creative Flat",
+    "creative_terrain": "Creative Terrain",
+    "survival": "Survival",
 }
 
 
@@ -169,14 +142,112 @@ def parse_args() -> argparse.Namespace:
         choices=sorted(SAVE_SPECS.keys()),
         help="Benchmark only the specified save. Repeat to benchmark multiple saves.",
     )
+    parser.add_argument(
+        "--description",
+        default="",
+        help="Session description used in graph titles, for example '2160p'.",
+    )
+    parser.add_argument(
+        "--settings-config",
+        type=Path,
+        default=DEFAULT_SETTINGS_CONFIG,
+        help="Settings preset JSON to apply before each benchmark run.",
+    )
+    parser.add_argument(
+        "--save-display-name",
+        action="append",
+        nargs=2,
+        metavar=("SAVE", "LABEL"),
+        help="Override the display name for a save, for example --save-display-name creative_flat 'Creative Flat'.",
+    )
+    parser.add_argument(
+        "--max-empty-capture-retries",
+        type=int,
+        default=2,
+        help="How many times to retry a run when HardwareMonitoring.hml contains no 80 sample rows.",
+    )
     return parser.parse_args()
 
 
-def write_settings() -> None:
+def normalize_save_display_names(overrides: list[list[str]] | None) -> dict[str, str]:
+    display_names = dict(DEFAULT_SAVE_DISPLAY_NAMES)
+    if not overrides:
+        return display_names
+
+    for save_name, label in overrides:
+        if save_name not in SAVE_SPECS:
+            raise ValueError(f"Unknown save for --save-display-name: {save_name}")
+        display_names[save_name] = label
+    return display_names
+
+
+def resolve_settings_config_path(settings_config: Path) -> Path:
+    if settings_config.exists():
+        return settings_config.resolve()
+
+    candidate = (SCRIPT_DIR / settings_config).resolve()
+    if candidate.exists():
+        return candidate
+
+    raise FileNotFoundError(f"Settings config not found: {settings_config}")
+
+
+def load_settings_payload(settings_config_path: Path) -> dict[str, object]:
+    payload = json.loads(settings_config_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"Settings config must contain a JSON object: {settings_config_path}")
+    return payload
+
+
+def write_session_settings_snapshot(output_root: Path, settings_payload: dict[str, object]) -> Path:
+    snapshot_path = output_root / "settings.json"
+    snapshot_path.write_text(
+        json.dumps(settings_payload, indent=4) + "\n",
+        encoding="utf-8",
+    )
+    return snapshot_path
+
+
+def write_session_metadata(
+    output_root: Path,
+    description: str,
+    save_display_names: dict[str, str],
+    settings_config_path: Path,
+    settings_snapshot_path: Path,
+) -> None:
+    metadata = {
+        "description": description,
+        "save_display_names": save_display_names,
+        "settings_config_name": settings_config_path.stem,
+        "settings_config_path": str(settings_config_path),
+        "settings_snapshot_path": str(settings_snapshot_path),
+    }
+    (output_root / "metadata.json").write_text(
+        json.dumps(metadata, indent=4) + "\n",
+        encoding="utf-8",
+    )
+
+
+def write_settings(settings_payload: dict[str, object]) -> None:
     SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
     SETTINGS_PATH.write_text(
-        json.dumps(SETTINGS_TEMPLATE, indent=4) + "\n", encoding="utf-8"
+        json.dumps(settings_payload, indent=4) + "\n", encoding="utf-8"
     )
+
+
+def count_hml_sample_rows(hml_path: Path) -> int:
+    with hml_path.open("r", encoding="cp1251", errors="replace", newline="") as handle:
+        rows = csv.reader(handle)
+        return sum(1 for row in rows if row and row[0].strip() == "80")
+
+
+def cleanup_attempt_artifacts(run_dir: Path) -> None:
+    for path in run_dir.iterdir():
+        if path.name in {"metadata.json", "HardwareMonitoring.hml"}:
+            path.unlink(missing_ok=True)
+            continue
+        if path.is_file() and path.name.startswith("game-") and path.suffix == ".log":
+            path.unlink(missing_ok=True)
 
 
 def list_scrap_mechanic_pids() -> set[int]:
@@ -337,7 +408,7 @@ def selected_saves(save_names: list[str] | None) -> Iterable[SaveSpec]:
     return SAVE_SPECS.values()
 
 
-def validate_environment(args: argparse.Namespace) -> None:
+def validate_environment(args: argparse.Namespace, settings_config_path: Path) -> None:
     if not args.threads:
         raise ValueError("At least one thread count must be provided")
 
@@ -351,8 +422,14 @@ def validate_environment(args: argparse.Namespace) -> None:
             f"Thread counts must stay within 1..32, got {invalid_thread_counts}"
         )
 
+    if args.max_empty_capture_retries < 0:
+        raise ValueError("--max-empty-capture-retries must be >= 0")
+
     if not args.injector.exists():
         raise FileNotFoundError(f"Injector not found: {args.injector}")
+
+    if not settings_config_path.exists():
+        raise FileNotFoundError(f"Settings config not found: {settings_config_path}")
 
     if not BENCHMARK_SAVES_DIR.exists():
         raise FileNotFoundError(
@@ -379,6 +456,10 @@ def run_single_benchmark(
     thread_count: int,
     load_seconds: float,
     measure_seconds: float,
+    settings_config_path: Path,
+    settings_snapshot_path: Path,
+    settings_payload: dict[str, object],
+    max_empty_capture_retries: int,
 ) -> None:
     run_name = f"{save_spec.name}_threads_{thread_count:02d}"
     run_dir = output_root / run_name
@@ -387,92 +468,126 @@ def run_single_benchmark(
     save_copy_path = run_dir / save_spec.bundled_path.name
     shutil.copy2(save_spec.bundled_path, save_copy_path)
 
-    write_settings()
+    max_attempts = max_empty_capture_retries + 1
+    for attempt in range(1, max_attempts + 1):
+        write_settings(settings_payload)
+        cleanup_attempt_artifacts(run_dir)
 
-    before_pids = list_scrap_mechanic_pids()
-    previous_game_log = newest_game_log()
-    previous_game_log_mtime = (
-        previous_game_log.stat().st_mtime if previous_game_log else None
-    )
-
-    if AFTERBURNER_LOG_PATH.exists():
-        AFTERBURNER_LOG_PATH.unlink()
-
-    print(f"[run] launching {run_name}")
-    injector_process = launch_game(injector_path, thread_count, save_copy_path)
-
-    try:
-        game_pid = wait_for_new_game_pid(before_pids, 120.0)
-        injector_process.wait(timeout=30.0)
-
-        print(f"[run] game pid {game_pid}, waiting {load_seconds:.0f}s for load")
-        time.sleep(load_seconds)
-
-        print("[run] starting MSI Afterburner capture")
-        send_numpad_key(VK_NUMPAD1)
-
-        print(f"[run] measuring for {measure_seconds:.0f}s")
-        time.sleep(measure_seconds)
-
-        print("[run] stopping MSI Afterburner capture")
-        send_numpad_key(VK_NUMPAD2)
-
-        print("[run] closing game")
-        close_game_process(game_pid)
-
-        afterburner_log = wait_for_afterburner_log_update(None, 15.0)
-        archived_hml = run_dir / "HardwareMonitoring.hml"
-        shutil.move(str(afterburner_log), archived_hml)
-
-        latest_game_log = newest_game_log()
-        if latest_game_log is None:
-            raise RuntimeError("No Scrap Mechanic game log was found after the run")
-        if (
-            previous_game_log_mtime is not None
-            and latest_game_log.stat().st_mtime <= previous_game_log_mtime
-        ):
-            raise RuntimeError(
-                "Did not find a newer Scrap Mechanic game log for the completed run"
-            )
-
-        archived_game_log = run_dir / latest_game_log.name
-        shutil.copy2(latest_game_log, archived_game_log)
-
-        metadata = {
-            "save": save_spec.name,
-            "thread_count": thread_count,
-            "load_seconds": load_seconds,
-            "measure_seconds": measure_seconds,
-            "save_copy_path": str(save_copy_path),
-            "archived_afterburner_log": str(archived_hml),
-            "archived_game_log": str(archived_game_log),
-            "settings_path": str(SETTINGS_PATH),
-        }
-        (run_dir / "metadata.json").write_text(
-            json.dumps(metadata, indent=4) + "\n", encoding="utf-8"
+        before_pids = list_scrap_mechanic_pids()
+        previous_game_log = newest_game_log()
+        previous_game_log_mtime = (
+            previous_game_log.stat().st_mtime if previous_game_log else None
         )
 
-        print(f"[run] completed {run_name}")
-    except Exception:
-        if injector_process.poll() is None:
-            injector_process.kill()
-            injector_process.wait()
-        current_pids = list_scrap_mechanic_pids()
-        new_pids = current_pids - before_pids
-        for pid in sorted(new_pids):
-            try:
-                close_game_process(pid)
-            except Exception:
-                pass
-        raise
+        if AFTERBURNER_LOG_PATH.exists():
+            AFTERBURNER_LOG_PATH.unlink()
+
+        print(f"[run] launching {run_name} (attempt {attempt}/{max_attempts})")
+        injector_process = launch_game(injector_path, thread_count, save_copy_path)
+
+        try:
+            game_pid = wait_for_new_game_pid(before_pids, 120.0)
+            injector_process.wait(timeout=30.0)
+
+            print(f"[run] game pid {game_pid}, waiting {load_seconds:.0f}s for load")
+            time.sleep(load_seconds)
+
+            print("[run] starting MSI Afterburner capture")
+            send_numpad_key(VK_NUMPAD1)
+
+            print(f"[run] measuring for {measure_seconds:.0f}s")
+            time.sleep(measure_seconds)
+
+            print("[run] stopping MSI Afterburner capture")
+            send_numpad_key(VK_NUMPAD2)
+
+            print("[run] closing game")
+            close_game_process(game_pid)
+
+            afterburner_log = wait_for_afterburner_log_update(None, 15.0)
+            archived_hml = run_dir / "HardwareMonitoring.hml"
+            shutil.move(str(afterburner_log), archived_hml)
+
+            sample_row_count = count_hml_sample_rows(archived_hml)
+            if sample_row_count == 0:
+                raise EmptyCaptureError(
+                    f"{archived_hml}: contains no 80 sample rows"
+                )
+
+            latest_game_log = newest_game_log()
+            if latest_game_log is None:
+                raise RuntimeError("No Scrap Mechanic game log was found after the run")
+            if (
+                previous_game_log_mtime is not None
+                and latest_game_log.stat().st_mtime <= previous_game_log_mtime
+            ):
+                raise RuntimeError(
+                    "Did not find a newer Scrap Mechanic game log for the completed run"
+                )
+
+            archived_game_log = run_dir / latest_game_log.name
+            shutil.copy2(latest_game_log, archived_game_log)
+
+            metadata = {
+                "save": save_spec.name,
+                "thread_count": thread_count,
+                "load_seconds": load_seconds,
+                "measure_seconds": measure_seconds,
+                "save_copy_path": str(save_copy_path),
+                "archived_afterburner_log": str(archived_hml),
+                "archived_game_log": str(archived_game_log),
+                "settings_path": str(SETTINGS_PATH),
+                "settings_config_name": settings_config_path.stem,
+                "settings_config_path": str(settings_config_path),
+                "settings_snapshot_path": str(settings_snapshot_path),
+                "capture_attempts": attempt,
+                "sample_row_count": sample_row_count,
+            }
+            (run_dir / "metadata.json").write_text(
+                json.dumps(metadata, indent=4) + "\n", encoding="utf-8"
+            )
+
+            print(f"[run] completed {run_name}")
+            return
+        except Exception as exc:
+            if injector_process.poll() is None:
+                injector_process.kill()
+                injector_process.wait()
+            current_pids = list_scrap_mechanic_pids()
+            new_pids = current_pids - before_pids
+            for pid in sorted(new_pids):
+                try:
+                    close_game_process(pid)
+                except Exception:
+                    pass
+
+            if isinstance(exc, EmptyCaptureError) and attempt < max_attempts:
+                print(
+                    f"[warn] {run_name} produced an empty capture, retrying ({attempt}/{max_attempts})",
+                    file=sys.stderr,
+                )
+                continue
+
+            raise
 
 
 def main() -> int:
     args = parse_args()
-    validate_environment(args)
+    settings_config_path = resolve_settings_config_path(args.settings_config)
+    validate_environment(args, settings_config_path)
+    save_display_names = normalize_save_display_names(args.save_display_name)
+    settings_payload = load_settings_payload(settings_config_path)
 
     output_root = args.output_root / time.strftime("%Y%m%d-%H%M%S")
     output_root.mkdir(parents=True, exist_ok=False)
+    settings_snapshot_path = write_session_settings_snapshot(output_root, settings_payload)
+    write_session_metadata(
+        output_root=output_root,
+        description=args.description,
+        save_display_names=save_display_names,
+        settings_config_path=settings_config_path,
+        settings_snapshot_path=settings_snapshot_path,
+    )
 
     print(f"[info] results root: {output_root}")
     print(f"[info] injector: {args.injector}")
@@ -486,6 +601,10 @@ def main() -> int:
                 thread_count=thread_count,
                 load_seconds=args.load_seconds,
                 measure_seconds=args.measure_seconds,
+                settings_config_path=settings_config_path,
+                settings_snapshot_path=settings_snapshot_path,
+                settings_payload=settings_payload,
+                max_empty_capture_retries=args.max_empty_capture_retries,
             )
 
     print("[done] all benchmark runs completed")
