@@ -14,9 +14,11 @@ namespace Scraptifine::Hooks {
     constexpr unsigned int kDefaultThreadCount = 4;
 
     using PROC_GetProcessorCount = unsigned int(__cdecl*)();
+	using PROC_TaskManager_Create = uint64_t(*)(void*);
 
     FARPROC* pIat_GetProcessorCount = nullptr;
     PROC_GetProcessorCount original_GetProcessorCount = nullptr;
+	PROC_TaskManager_Create TaskManager_Create = nullptr;
     std::optional<unsigned int> opt_ForcedThreadCount;
 
     std::optional<unsigned int> ParseThreadCountFromCommandLine() {
@@ -55,8 +57,18 @@ namespace Scraptifine::Hooks {
     }
 
     unsigned int __cdecl hook_GetProcessorCount() {
-        if (opt_ForcedThreadCount.has_value()) {
-            return *opt_ForcedThreadCount;
+		Console::log(Color::LightAqua, "GetProcessorCount called at %p", _ReturnAddress());
+
+		const void* callerStart = SMLibrary::Xrefs::FindFunctionStart(_ReturnAddress());
+
+        if (callerStart == TaskManager_Create) {
+            if (opt_ForcedThreadCount.has_value()) {
+                Console::log(Color::Aqua, "GetProcessorCount called from TaskManager::Create, returning forced thread count");
+                return *opt_ForcedThreadCount;
+            }
+            else {
+                Console::log(Color::LightRed, "GetProcessorCount called from TaskManager::Create, but no forced thread count was set, returning original value");
+            }
         }
 
         if (original_GetProcessorCount) {
@@ -97,6 +109,17 @@ namespace Scraptifine::Hooks {
         VirtualProtect(pIat_GetProcessorCount, sizeof(FARPROC), oldProtection, &temp);
 
         Console::log(Color::Aqua, "Forced Concurrency::GetProcessorCount to %u", *opt_ForcedThreadCount);
+
+        TaskManager_Create = (PROC_TaskManager_Create)SMLibrary::Xrefs::FindFunctionReferencingString(
+            GetModuleHandle(NULL),
+            "Starting task manager with "
+		);
+
+        if (!TaskManager_Create) {
+            Console::log(Color::Red, "Failed to find TaskManager::Create function");
+            return false;
+		}
+
         Console::log(Color::Aqua, "Hooks installed!");
         return true;
     }
